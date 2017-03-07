@@ -1,13 +1,14 @@
 {
   "name": "polymod",
   "version": "1.0.0",
-  "description": "",
+  "description": "A library for composing data models from any number of sources.",
   "main": "dist/index.js",
   "scripts": {
     "test": "jest",
     "build": "webpack",
     "prepublish": "npm run build"
   },
+  "repository": "dstreet/polymod",
   "author": "David Street",
   "license": "MIT",
   "dependencies": {

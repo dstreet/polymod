@@ -1,6 +1,6 @@
 # Polymod
 
-A library for expressing data models from any number of sources.
+A library for composing data models from any number of sources.
 
 ## License
 

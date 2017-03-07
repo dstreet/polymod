@@ -2587,151 +2587,336 @@ addToUnscopables('entries');
 "use strict";
 
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Document = function () {
-	function Document(model) {
+	function Document(model, isNew) {
 		_classCallCheck(this, Document);
 
 		this.model = model;
+		this.isNew = isNew;
 		this.fields = {};
+		this.schemaRefMap = [];
 	}
 
 	_createClass(Document, [{
-		key: "addField",
-		value: function addField(fieldName, field, select, data) {
-			this.fields[fieldName] = { field: field, select: select, data: data, dirty: false };
-
-			return this;
-		}
-	}, {
-		key: "set",
+		key: 'addField',
 		value: function () {
-			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(fieldName, data) {
-				var field;
+			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(fieldName, fieldDefinition, select) {
+				var refDoc;
 				return regeneratorRuntime.wrap(function _callee$(_context) {
 					while (1) {
 						switch (_context.prev = _context.next) {
 							case 0:
-								field = this.fields[fieldName];
+								_context.next = 2;
+								return fieldDefinition.schema.getReferenceDocument(select);
 
-								if (!field) {
-									_context.next = 12;
-									break;
-								}
-
-								if (!field.field.set) {
-									_context.next = 8;
-									break;
-								}
-
+							case 2:
+								refDoc = _context.sent;
 								_context.next = 5;
-								return field.field.set(data);
+								return this.addFieldWithReference(fieldName, fieldDefinition, select, refDoc);
 
 							case 5:
-								_context.t0 = _context.sent;
-								_context.next = 9;
-								break;
+								return _context.abrupt('return', this);
 
-							case 8:
-								_context.t0 = data;
-
-							case 9:
-								field.data = _context.t0;
-
-								field.raw = data;
-								field.dirty = true;
-
-							case 12:
-								return _context.abrupt("return", this);
-
-							case 13:
-							case "end":
+							case 6:
+							case 'end':
 								return _context.stop();
 						}
 					}
 				}, _callee, this);
 			}));
 
-			function set(_x, _x2) {
+			function addField(_x, _x2, _x3) {
 				return _ref.apply(this, arguments);
 			}
 
-			return set;
+			return addField;
 		}()
 	}, {
-		key: "mutate",
+		key: 'addFieldWithReference',
 		value: function () {
-			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(name, data) {
-				var mutation, docFields, key;
+			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(fieldName, fieldDefinition, select, refDoc) {
 				return regeneratorRuntime.wrap(function _callee2$(_context2) {
 					while (1) {
 						switch (_context2.prev = _context2.next) {
 							case 0:
-								mutation = this.model.mutation[name];
-								_context2.next = 3;
-								return mutation(this, data);
-
-							case 3:
-								docFields = _context2.sent;
-								_context2.t0 = regeneratorRuntime.keys(docFields);
-
-							case 5:
-								if ((_context2.t1 = _context2.t0()).done) {
-									_context2.next = 11;
-									break;
+								if (!this.schemaRefMap.find(function (item) {
+									return item.document === refDoc;
+								})) {
+									this.schemaRefMap.push({ schema: fieldDefinition.schema, document: refDoc, select: select });
 								}
 
-								key = _context2.t1.value;
-								_context2.next = 9;
-								return this.set(key, docFields[key]);
-
-							case 9:
+								_context2.t0 = fieldDefinition;
+								_context2.t1 = refDoc;
 								_context2.next = 5;
-								break;
+								return fieldDefinition.get(refDoc);
 
-							case 11:
-								return _context2.abrupt("return", this);
+							case 5:
+								_context2.t2 = _context2.sent;
+								this.fields[fieldName] = {
+									fieldDefinition: _context2.t0,
+									referenceDocument: _context2.t1,
+									data: _context2.t2,
+									dirty: false
+								};
+								return _context2.abrupt('return', this);
 
-							case 12:
-							case "end":
+							case 8:
+							case 'end':
 								return _context2.stop();
 						}
 					}
 				}, _callee2, this);
 			}));
 
-			function mutate(_x3, _x4) {
+			function addFieldWithReference(_x4, _x5, _x6, _x7) {
 				return _ref2.apply(this, arguments);
 			}
 
-			return mutate;
+			return addFieldWithReference;
 		}()
 	}, {
-		key: "get",
+		key: 'createField',
+		value: function createField(fieldName, fieldDefinition) {
+			var select = fieldDefinition.select;
+			var refDoc = {};
+
+			if (!this.schemaRefMap.find(function (item) {
+				return item.document === refDoc;
+			})) {
+				this.schemaRefMap.push({ schema: fieldDefinition.schema, document: refDoc, select: select });
+			}
+
+			this.fields[fieldName] = {
+				fieldDefinition: fieldDefinition,
+				referenceDocument: refDoc,
+				data: undefined,
+				dirty: false
+			};
+
+			return this;
+		}
+	}, {
+		key: 'get',
 		value: function get(fieldName) {
 			return this.fields[fieldName].data;
 		}
 	}, {
-		key: "getFieldDocument",
+		key: 'getFieldDocument',
 		value: function getFieldDocument(fieldName) {
-			return this.fields[fieldName].field.cached;
+			var field = this.fields[fieldName];
+			return field.referenceDocument;
 		}
 	}, {
-		key: "commit",
+		key: 'set',
 		value: function () {
-			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3() {
-				var _this = this;
-
-				var dirtyFields, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, field;
+			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(fieldName, data) {
+				var key, field, _field;
 
 				return regeneratorRuntime.wrap(function _callee3$(_context3) {
 					while (1) {
 						switch (_context3.prev = _context3.next) {
+							case 0:
+								if (!((typeof fieldName === 'undefined' ? 'undefined' : _typeof(fieldName)) === 'object')) {
+									_context3.next = 12;
+									break;
+								}
+
+								_context3.t0 = regeneratorRuntime.keys(fieldName);
+
+							case 2:
+								if ((_context3.t1 = _context3.t0()).done) {
+									_context3.next = 10;
+									break;
+								}
+
+								key = _context3.t1.value;
+								field = this.fields[key];
+
+								if (!field) {
+									_context3.next = 8;
+									break;
+								}
+
+								_context3.next = 8;
+								return this._setField(field, fieldName[key]);
+
+							case 8:
+								_context3.next = 2;
+								break;
+
+							case 10:
+								_context3.next = 16;
+								break;
+
+							case 12:
+								_field = this.fields[fieldName];
+
+								if (!_field) {
+									_context3.next = 16;
+									break;
+								}
+
+								_context3.next = 16;
+								return this._setField(_field, data);
+
+							case 16:
+								return _context3.abrupt('return', this);
+
+							case 17:
+							case 'end':
+								return _context3.stop();
+						}
+					}
+				}, _callee3, this);
+			}));
+
+			function set(_x8, _x9) {
+				return _ref3.apply(this, arguments);
+			}
+
+			return set;
+		}()
+	}, {
+		key: '_setField',
+		value: function () {
+			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(field, data) {
+				return regeneratorRuntime.wrap(function _callee4$(_context4) {
+					while (1) {
+						switch (_context4.prev = _context4.next) {
+							case 0:
+								if (!field.fieldDefinition.set) {
+									_context4.next = 6;
+									break;
+								}
+
+								_context4.next = 3;
+								return field.fieldDefinition.set(data);
+
+							case 3:
+								_context4.t0 = _context4.sent;
+								_context4.next = 7;
+								break;
+
+							case 6:
+								_context4.t0 = data;
+
+							case 7:
+								field.data = _context4.t0;
+
+								field.raw = data;
+								field.dirty = true;
+
+							case 10:
+							case 'end':
+								return _context4.stop();
+						}
+					}
+				}, _callee4, this);
+			}));
+
+			function _setField(_x10, _x11) {
+				return _ref4.apply(this, arguments);
+			}
+
+			return _setField;
+		}()
+	}, {
+		key: 'mutate',
+		value: function () {
+			var _ref5 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(name, data) {
+				var mutation, docFields, key;
+				return regeneratorRuntime.wrap(function _callee5$(_context5) {
+					while (1) {
+						switch (_context5.prev = _context5.next) {
+							case 0:
+								mutation = this.model.mutation[name];
+								_context5.next = 3;
+								return mutation(this, data);
+
+							case 3:
+								docFields = _context5.sent;
+								_context5.t0 = regeneratorRuntime.keys(docFields);
+
+							case 5:
+								if ((_context5.t1 = _context5.t0()).done) {
+									_context5.next = 11;
+									break;
+								}
+
+								key = _context5.t1.value;
+								_context5.next = 9;
+								return this.set(key, docFields[key]);
+
+							case 9:
+								_context5.next = 5;
+								break;
+
+							case 11:
+								return _context5.abrupt('return', this);
+
+							case 12:
+							case 'end':
+								return _context5.stop();
+						}
+					}
+				}, _callee5, this);
+			}));
+
+			function mutate(_x12, _x13) {
+				return _ref5.apply(this, arguments);
+			}
+
+			return mutate;
+		}()
+
+		// async commit() {
+		// 	const dirtyFields = Object.keys(this.fields)
+		// 		.filter(key => this.fields[key].dirty)
+		// 		.map(key => this.fields[key])
+
+		// 	for (const field of dirtyFields) {
+		// 		const commitData = field.fieldDefinition.commit(field.raw)
+		// 		const refDoc = this.referenceDocuments[field.referenceDocument]
+
+		// 		refDoc.documents = { ...refDoc.documents, ...commitData }
+		// 		field.dirty = false
+		// 	}
+
+		// 	// TODO: Only commit documenents that have changed
+		// 	for (const refDoc of this.referenceDocuments) {
+		// 		if (this.isNew) {
+		// 			const newRefDocuments = await refDoc.schema.create(refDoc.documents)
+
+		// 			refDoc.documents = newRefDocuments
+		// 			refDoc.select = { [refDoc.schema.keyField]: newRefDocuments[refDoc.schema.keyField] }
+		// 			this.isNew = false
+		// 		} else {
+		// 			await refDoc.schema.update(refDoc.select, refDoc.documents)
+		// 		}
+		// 	}
+		// }
+
+	}, {
+		key: 'commit',
+		value: function () {
+			var _ref6 = _asyncToGenerator(regeneratorRuntime.mark(function _callee6() {
+				var _this = this;
+
+				var dirtyFields, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, field, commitData, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, schemaRef, newRefDocument, select, key;
+
+				return regeneratorRuntime.wrap(function _callee6$(_context6) {
+					while (1) {
+						switch (_context6.prev = _context6.next) {
 							case 0:
 								dirtyFields = Object.keys(this.fields).filter(function (key) {
 									return _this.fields[key].dirty;
@@ -2741,72 +2926,145 @@ var Document = function () {
 								_iteratorNormalCompletion = true;
 								_didIteratorError = false;
 								_iteratorError = undefined;
-								_context3.prev = 4;
-								_iterator = dirtyFields[Symbol.iterator]();
+								_context6.prev = 4;
 
-							case 6:
-								if (_iteratorNormalCompletion = (_step = _iterator.next()).done) {
-									_context3.next = 14;
-									break;
+
+								for (_iterator = dirtyFields[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+									field = _step.value;
+									commitData = field.fieldDefinition.commit(field.raw);
+
+
+									Object.assign(field.referenceDocument, commitData);
+									field.dirty = false;
 								}
 
-								field = _step.value;
-								_context3.next = 10;
-								return field.field.commit(field.select, field.raw, field);
-
-							case 10:
-
-								field.dirty = false;
-
-							case 11:
-								_iteratorNormalCompletion = true;
-								_context3.next = 6;
+								_context6.next = 12;
 								break;
 
-							case 14:
-								_context3.next = 20;
-								break;
-
-							case 16:
-								_context3.prev = 16;
-								_context3.t0 = _context3["catch"](4);
+							case 8:
+								_context6.prev = 8;
+								_context6.t0 = _context6['catch'](4);
 								_didIteratorError = true;
-								_iteratorError = _context3.t0;
+								_iteratorError = _context6.t0;
 
-							case 20:
-								_context3.prev = 20;
-								_context3.prev = 21;
+							case 12:
+								_context6.prev = 12;
+								_context6.prev = 13;
 
 								if (!_iteratorNormalCompletion && _iterator.return) {
 									_iterator.return();
 								}
 
-							case 23:
-								_context3.prev = 23;
+							case 15:
+								_context6.prev = 15;
 
 								if (!_didIteratorError) {
-									_context3.next = 26;
+									_context6.next = 18;
 									break;
 								}
 
 								throw _iteratorError;
 
-							case 26:
-								return _context3.finish(23);
+							case 18:
+								return _context6.finish(15);
 
-							case 27:
-								return _context3.finish(20);
+							case 19:
+								return _context6.finish(12);
 
-							case 28:
-							case "end":
-								return _context3.stop();
+							case 20:
+								_iteratorNormalCompletion2 = true;
+								_didIteratorError2 = false;
+								_iteratorError2 = undefined;
+								_context6.prev = 23;
+								_iterator2 = this.schemaRefMap[Symbol.iterator]();
+
+							case 25:
+								if (_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done) {
+									_context6.next = 43;
+									break;
+								}
+
+								schemaRef = _step2.value;
+
+								if (!this.isNew) {
+									_context6.next = 38;
+									break;
+								}
+
+								_context6.next = 30;
+								return schemaRef.schema.create(schemaRef.document);
+
+							case 30:
+								newRefDocument = _context6.sent;
+								select = _defineProperty({}, schemaRef.schema.keyField, newRefDocument[schemaRef.schema.keyField]);
+
+
+								for (key in this.fields) {
+									if (this.fields[key].referenceDocument === schemaRef.document) {
+										this.fields[key].referenceDocument = newRefDocument;
+									}
+								}
+
+								schemaRef.document = newRefDocument;
+								schemaRef.select = select;
+
+								this.isNew = false;
+								_context6.next = 40;
+								break;
+
+							case 38:
+								_context6.next = 40;
+								return schemaRef.schema.update(schemaRef.select, schemaRef.document);
+
+							case 40:
+								_iteratorNormalCompletion2 = true;
+								_context6.next = 25;
+								break;
+
+							case 43:
+								_context6.next = 49;
+								break;
+
+							case 45:
+								_context6.prev = 45;
+								_context6.t1 = _context6['catch'](23);
+								_didIteratorError2 = true;
+								_iteratorError2 = _context6.t1;
+
+							case 49:
+								_context6.prev = 49;
+								_context6.prev = 50;
+
+								if (!_iteratorNormalCompletion2 && _iterator2.return) {
+									_iterator2.return();
+								}
+
+							case 52:
+								_context6.prev = 52;
+
+								if (!_didIteratorError2) {
+									_context6.next = 55;
+									break;
+								}
+
+								throw _iteratorError2;
+
+							case 55:
+								return _context6.finish(52);
+
+							case 56:
+								return _context6.finish(49);
+
+							case 57:
+							case 'end':
+								return _context6.stop();
 						}
 					}
-				}, _callee3, this, [[4, 16, 20, 28], [21,, 23, 27]]);
+				}, _callee6, this, [[4, 8, 12, 20], [13,, 15, 19], [23, 45, 49, 57], [50,, 52, 56]]);
 			}));
 
 			function commit() {
-				return _ref3.apply(this, arguments);
+				return _ref6.apply(this, arguments);
 			}
 
 			return commit;
@@ -3683,8 +3941,6 @@ define(String.prototype, "padRight", "".padEnd);
 "use strict";
 
 
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
@@ -3922,303 +4178,86 @@ var Field = function () {
 				}
 			});
 		}
-	}, {
-		key: 'Nested',
-		value: function Nested(fields) {
-			var _this3 = this;
-
-			var schema = {
-				read: function read(selector) {
-					var _this2 = this;
-
-					return _asyncToGenerator(regeneratorRuntime.mark(function _callee5() {
-						var results, key;
-						return regeneratorRuntime.wrap(function _callee5$(_context5) {
-							while (1) {
-								switch (_context5.prev = _context5.next) {
-									case 0:
-										results = {};
-										_context5.t0 = regeneratorRuntime.keys(selector);
-
-									case 2:
-										if ((_context5.t1 = _context5.t0()).done) {
-											_context5.next = 17;
-											break;
-										}
-
-										key = _context5.t1.value;
-										_context5.t2 = _extends;
-										_context5.t3 = {};
-										_context5.t4 = results;
-										_context5.t5 = _defineProperty;
-										_context5.t6 = {};
-										_context5.t7 = key;
-										_context5.next = 12;
-										return fields[key].schema.read(selector[key]);
-
-									case 12:
-										_context5.t8 = _context5.sent;
-										_context5.t9 = (0, _context5.t5)(_context5.t6, _context5.t7, _context5.t8);
-										results = (0, _context5.t2)(_context5.t3, _context5.t4, _context5.t9);
-										_context5.next = 2;
-										break;
-
-									case 17:
-										return _context5.abrupt('return', [results]);
-
-									case 18:
-									case 'end':
-										return _context5.stop();
-								}
-							}
-						}, _callee5, _this2);
-					}))();
-				},
-				update: function update() {
-					return true;
-				}
-			};
-
-			var fieldObj = new Field(schema, {
-				select: function select(val) {
-					return Object.keys(fields).reduce(function (acc, key) {
-						return _extends({}, acc, _defineProperty({}, key, fields[key].select(val)));
-					}, {});
-				},
-				set: function () {
-					var _ref9 = _asyncToGenerator(regeneratorRuntime.mark(function _callee6(data) {
-						var results, key, setData;
-						return regeneratorRuntime.wrap(function _callee6$(_context6) {
-							while (1) {
-								switch (_context6.prev = _context6.next) {
-									case 0:
-										results = {};
-
-
-										for (key in data) {
-											setData = fields[key].set ? fields[key].set(data[key]) : data[key];
-
-
-											results = _extends({}, results, _defineProperty({}, key, setData));
-										}
-
-										return _context6.abrupt('return', results);
-
-									case 3:
-									case 'end':
-										return _context6.stop();
-								}
-							}
-						}, _callee6, _this3);
-					}));
-
-					return function set(_x5) {
-						return _ref9.apply(this, arguments);
-					};
-				}(),
-				commit: function commit() {}
-			});
-
-			fieldObj.get = function () {
-				var _ref10 = _asyncToGenerator(regeneratorRuntime.mark(function _callee7(val) {
-					var results, key;
-					return regeneratorRuntime.wrap(function _callee7$(_context7) {
-						while (1) {
-							switch (_context7.prev = _context7.next) {
-								case 0:
-									results = {};
-									_context7.t0 = regeneratorRuntime.keys(fields);
-
-								case 2:
-									if ((_context7.t1 = _context7.t0()).done) {
-										_context7.next = 17;
-										break;
-									}
-
-									key = _context7.t1.value;
-									_context7.t2 = _extends;
-									_context7.t3 = {};
-									_context7.t4 = results;
-									_context7.t5 = _defineProperty;
-									_context7.t6 = {};
-									_context7.t7 = key;
-									_context7.next = 12;
-									return fields[key].get(val);
-
-								case 12:
-									_context7.t8 = _context7.sent;
-									_context7.t9 = (0, _context7.t5)(_context7.t6, _context7.t7, _context7.t8);
-									results = (0, _context7.t2)(_context7.t3, _context7.t4, _context7.t9);
-									_context7.next = 2;
-									break;
-
-								case 17:
-									return _context7.abrupt('return', results);
-
-								case 18:
-								case 'end':
-									return _context7.stop();
-							}
-						}
-					}, _callee7, _this3);
-				}));
-
-				return function (_x6) {
-					return _ref10.apply(this, arguments);
-				};
-			}();
-
-			return fieldObj;
-		}
 	}]);
 
-	function Field(schema, _ref11) {
-		var select = _ref11.select,
-		    get = _ref11.get,
-		    set = _ref11.set,
-		    commit = _ref11.commit,
-		    multi = _ref11.multi;
+	function Field(schema, _ref9) {
+		var select = _ref9.select,
+		    get = _ref9.get,
+		    set = _ref9.set,
+		    commit = _ref9.commit,
+		    multi = _ref9.multi;
 
 		_classCallCheck(this, Field);
 
 		this.schema = schema;
 		this.select = select;
 		this.set = set;
-		this._get = get;
-		this._commit = commit;
+		this.get = get;
+		this.commit = commit;
 		this._multi = multi || false;
 		this._cachedDocuments;
 	}
 
+	// async get(val, all) {
+	// 	const documents = await this.schema.read(this.select(val))
+
+	// 	if (this._multi || all) {
+	// 		this.data = []
+
+	// 		for (const document of documents) {
+	// 			this.data.push(this._get(document))
+	// 		}
+
+	// 		this._cachedDocuments = documents
+	// 	} else {
+	// 		this.data = await this._get(documents[0])
+	// 		this._cachedDocuments = documents[0]
+	// 	}
+
+	// 	return this.data
+	// }
+
 	_createClass(Field, [{
-		key: 'get',
+		key: 'commitNew',
+
+
+		// async commit(selector, data) {
+		// 	const updatedDocs = await this.schema.update(selector, this._commit(data))
+		// 	this._cachedDocuments = updatedDocs[0]
+
+		// 	return this
+		// }
+
 		value: function () {
-			var _ref12 = _asyncToGenerator(regeneratorRuntime.mark(function _callee8(val, all) {
-				var documents, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, document;
-
-				return regeneratorRuntime.wrap(function _callee8$(_context8) {
-					while (1) {
-						switch (_context8.prev = _context8.next) {
-							case 0:
-								_context8.next = 2;
-								return this.schema.read(this.select(val));
-
-							case 2:
-								documents = _context8.sent;
-
-								if (!(this._multi || all)) {
-									_context8.next = 27;
-									break;
-								}
-
-								this.data = [];
-
-								_iteratorNormalCompletion2 = true;
-								_didIteratorError2 = false;
-								_iteratorError2 = undefined;
-								_context8.prev = 8;
-								for (_iterator2 = documents[Symbol.iterator](); !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-									document = _step2.value;
-
-									this.data.push(this._get(document));
-								}
-
-								_context8.next = 16;
-								break;
-
-							case 12:
-								_context8.prev = 12;
-								_context8.t0 = _context8['catch'](8);
-								_didIteratorError2 = true;
-								_iteratorError2 = _context8.t0;
-
-							case 16:
-								_context8.prev = 16;
-								_context8.prev = 17;
-
-								if (!_iteratorNormalCompletion2 && _iterator2.return) {
-									_iterator2.return();
-								}
-
-							case 19:
-								_context8.prev = 19;
-
-								if (!_didIteratorError2) {
-									_context8.next = 22;
-									break;
-								}
-
-								throw _iteratorError2;
-
-							case 22:
-								return _context8.finish(19);
-
-							case 23:
-								return _context8.finish(16);
-
-							case 24:
-								this._cachedDocuments = documents;
-								_context8.next = 31;
-								break;
-
-							case 27:
-								_context8.next = 29;
-								return this._get(documents[0]);
-
-							case 29:
-								this.data = _context8.sent;
-
-								this._cachedDocuments = documents[0];
-
-							case 31:
-								return _context8.abrupt('return', this.data);
-
-							case 32:
-							case 'end':
-								return _context8.stop();
-						}
-					}
-				}, _callee8, this, [[8, 12, 16, 24], [17,, 19, 23]]);
-			}));
-
-			function get(_x7, _x8) {
-				return _ref12.apply(this, arguments);
-			}
-
-			return get;
-		}()
-	}, {
-		key: 'commit',
-		value: function () {
-			var _ref13 = _asyncToGenerator(regeneratorRuntime.mark(function _callee9(selector, data) {
+			var _ref10 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(data) {
 				var updatedDocs;
-				return regeneratorRuntime.wrap(function _callee9$(_context9) {
+				return regeneratorRuntime.wrap(function _callee5$(_context5) {
 					while (1) {
-						switch (_context9.prev = _context9.next) {
+						switch (_context5.prev = _context5.next) {
 							case 0:
-								_context9.next = 2;
-								return this.schema.update(selector, this._commit(data));
+								_context5.next = 2;
+								return this.schema.create(this._commit(data));
 
 							case 2:
-								updatedDocs = _context9.sent;
+								updatedDocs = _context5.sent;
 
 								this._cachedDocuments = updatedDocs[0];
 
-								return _context9.abrupt('return', this);
+								return _context5.abrupt('return', this);
 
 							case 5:
 							case 'end':
-								return _context9.stop();
+								return _context5.stop();
 						}
 					}
-				}, _callee9, this);
+				}, _callee5, this);
 			}));
 
-			function commit(_x9, _x10) {
-				return _ref13.apply(this, arguments);
+			function commitNew(_x5) {
+				return _ref10.apply(this, arguments);
 			}
 
-			return commit;
+			return commitNew;
 		}()
 	}, {
 		key: 'cached',
@@ -4483,7 +4522,7 @@ var Model = function () {
 		key: 'get',
 		value: function () {
 			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(val) {
-				var document, key, field, result;
+				var document, key, field;
 				return regeneratorRuntime.wrap(function _callee$(_context) {
 					while (1) {
 						switch (_context.prev = _context.next) {
@@ -4493,27 +4532,23 @@ var Model = function () {
 
 							case 2:
 								if ((_context.t1 = _context.t0()).done) {
-									_context.next = 11;
+									_context.next = 9;
 									break;
 								}
 
 								key = _context.t1.value;
 								field = this.fields[key];
 								_context.next = 7;
-								return field.get(val);
+								return document.addField(key, field, field.select(val));
 
 							case 7:
-								result = _context.sent;
-
-
-								document.addField(key, field, field.select(val), result);
 								_context.next = 2;
 								break;
 
-							case 11:
+							case 9:
 								return _context.abrupt('return', document);
 
-							case 12:
+							case 10:
 							case 'end':
 								return _context.stop();
 						}
@@ -4531,63 +4566,55 @@ var Model = function () {
 		key: 'getAll',
 		value: function () {
 			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(val) {
-				var _this = this;
-
-				var documents, _loop, key;
-
-				return regeneratorRuntime.wrap(function _callee2$(_context3) {
+				var documents, key, field, refDocs, i;
+				return regeneratorRuntime.wrap(function _callee2$(_context2) {
 					while (1) {
-						switch (_context3.prev = _context3.next) {
+						switch (_context2.prev = _context2.next) {
 							case 0:
 								documents = [];
-								_loop = regeneratorRuntime.mark(function _loop(key) {
-									var field, data;
-									return regeneratorRuntime.wrap(function _loop$(_context2) {
-										while (1) {
-											switch (_context2.prev = _context2.next) {
-												case 0:
-													field = _this.fields[key];
-													_context2.next = 3;
-													return field.get(val, true);
+								_context2.t0 = regeneratorRuntime.keys(this.fields);
 
-												case 3:
-													data = _context2.sent;
-
-
-													data.forEach(function (item, i) {
-														if (!documents[i]) documents[i] = new Document(_this);
-
-														documents[i].addField(key, field, field.select(val), item);
-													});
-
-												case 5:
-												case 'end':
-													return _context2.stop();
-											}
-										}
-									}, _loop, _this);
-								});
-								_context3.t0 = regeneratorRuntime.keys(this.fields);
-
-							case 3:
-								if ((_context3.t1 = _context3.t0()).done) {
-									_context3.next = 8;
+							case 2:
+								if ((_context2.t1 = _context2.t0()).done) {
+									_context2.next = 18;
 									break;
 								}
 
-								key = _context3.t1.value;
-								return _context3.delegateYield(_loop(key), 't2', 6);
+								key = _context2.t1.value;
+								field = this.fields[key];
+								_context2.next = 7;
+								return field.schema.getReferenceDocument(field.select(val), true);
 
-							case 6:
-								_context3.next = 3;
-								break;
-
-							case 8:
-								return _context3.abrupt('return', documents);
+							case 7:
+								refDocs = _context2.sent;
+								i = 0;
 
 							case 9:
+								if (!(i < refDocs.length)) {
+									_context2.next = 16;
+									break;
+								}
+
+								if (!documents[i]) documents[i] = new Document(this);
+
+								_context2.next = 13;
+								return documents[i].addFieldWithReference(key, field, field.select(val), refDocs[i]);
+
+							case 13:
+								i++;
+								_context2.next = 9;
+								break;
+
+							case 16:
+								_context2.next = 2;
+								break;
+
+							case 18:
+								return _context2.abrupt('return', documents);
+
+							case 19:
 							case 'end':
-								return _context3.stop();
+								return _context2.stop();
 						}
 					}
 				}, _callee2, this);
@@ -4600,6 +4627,19 @@ var Model = function () {
 			return getAll;
 		}()
 	}, {
+		key: 'create',
+		value: function create() {
+			var document = new Document(this, true);
+
+			for (var key in this.fields) {
+				var field = this.fields[key];
+
+				document.createField(key, field);
+			}
+
+			return document;
+		}
+	}, {
 		key: 'mutation',
 		value: function mutation(name, _mutation) {
 			this.mutation[name] = _mutation;
@@ -4609,120 +4649,82 @@ var Model = function () {
 	}, {
 		key: 'asField',
 		value: function asField(many) {
-			var _this2 = this;
-
-			var cachedDocument = void 0;
+			var _this = this;
 
 			return {
 				select: function select(val) {
 					return val;
 				},
-				get: function () {
-					var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(val) {
-						var doc;
-						return regeneratorRuntime.wrap(function _callee3$(_context4) {
-							while (1) {
-								switch (_context4.prev = _context4.next) {
-									case 0:
-										if (!many) {
-											_context4.next = 6;
+				get: function get(doc) {
+					return doc;
+				},
+				schema: {
+					update: function () {
+						var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(select, data) {
+							return regeneratorRuntime.wrap(function _callee3$(_context3) {
+								while (1) {
+									switch (_context3.prev = _context3.next) {
+										case 0:
+											_context3.next = 2;
+											return data.commit();
+
+										case 2:
+											return _context3.abrupt('return', _context3.sent);
+
+										case 3:
+										case 'end':
+											return _context3.stop();
+									}
+								}
+							}, _callee3, _this);
+						}));
+
+						return function update(_x3, _x4) {
+							return _ref3.apply(this, arguments);
+						};
+					}(),
+					getReferenceDocument: function () {
+						var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(select) {
+							return regeneratorRuntime.wrap(function _callee4$(_context4) {
+								while (1) {
+									switch (_context4.prev = _context4.next) {
+										case 0:
+											if (!many) {
+												_context4.next = 6;
+												break;
+											}
+
+											_context4.next = 3;
+											return _this.getAll(select);
+
+										case 3:
+											_context4.t0 = _context4.sent;
+											_context4.next = 9;
 											break;
-										}
 
-										_context4.next = 3;
-										return _this2.getAll(val);
+										case 6:
+											_context4.next = 8;
+											return _this.get(select);
 
-									case 3:
-										_context4.t0 = _context4.sent;
-										_context4.next = 9;
-										break;
+										case 8:
+											_context4.t0 = _context4.sent;
 
-									case 6:
-										_context4.next = 8;
-										return _this2.get(val);
+										case 9:
+											return _context4.abrupt('return', _context4.t0);
 
-									case 8:
-										_context4.t0 = _context4.sent;
-
-									case 9:
-										doc = _context4.t0;
-
-
-										cachedDocument = doc;
-										return _context4.abrupt('return', doc);
-
-									case 12:
-									case 'end':
-										return _context4.stop();
+										case 10:
+										case 'end':
+											return _context4.stop();
+									}
 								}
-							}
-						}, _callee3, _this2);
-					}));
+							}, _callee4, _this);
+						}));
 
-					return function get(_x3) {
-						return _ref3.apply(this, arguments);
-					};
-				}(),
-				set: function () {
-					var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(data) {
-						var key;
-						return regeneratorRuntime.wrap(function _callee4$(_context5) {
-							while (1) {
-								switch (_context5.prev = _context5.next) {
-									case 0:
-										_context5.t0 = regeneratorRuntime.keys(data);
-
-									case 1:
-										if ((_context5.t1 = _context5.t0()).done) {
-											_context5.next = 7;
-											break;
-										}
-
-										key = _context5.t1.value;
-										_context5.next = 5;
-										return cachedDocument.set(key, data[key]);
-
-									case 5:
-										_context5.next = 1;
-										break;
-
-									case 7:
-										return _context5.abrupt('return', cachedDocument);
-
-									case 8:
-									case 'end':
-										return _context5.stop();
-								}
-							}
-						}, _callee4, _this2);
-					}));
-
-					return function set(_x4) {
-						return _ref4.apply(this, arguments);
-					};
-				}(),
-				cache: cachedDocument,
-				commit: function () {
-					var _ref5 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5() {
-						return regeneratorRuntime.wrap(function _callee5$(_context6) {
-							while (1) {
-								switch (_context6.prev = _context6.next) {
-									case 0:
-										_context6.next = 2;
-										return cachedDocument.commit();
-
-									case 2:
-									case 'end':
-										return _context6.stop();
-								}
-							}
-						}, _callee5, _this2);
-					}));
-
-					return function commit() {
-						return _ref5.apply(this, arguments);
-					};
-				}()
+						return function getReferenceDocument(_x5) {
+							return _ref4.apply(this, arguments);
+						};
+					}()
+				}
 			};
 		}
 	}], [{
@@ -4757,25 +4759,24 @@ var Schema = function () {
 		this.store = store;
 		this.source = source;
 		this.keyField = keyField;
+		this._referenceDocuments = new Map();
 	}
 
 	_createClass(Schema, [{
-		key: "read",
+		key: "create",
 		value: function () {
-			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(selector, single) {
-				var docs;
+			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(data) {
 				return regeneratorRuntime.wrap(function _callee$(_context) {
 					while (1) {
 						switch (_context.prev = _context.next) {
 							case 0:
 								_context.next = 2;
-								return this.store.read(this.source, selector);
+								return this.store.create(this.source, data);
 
 							case 2:
-								docs = _context.sent;
-								return _context.abrupt("return", single ? docs[0] : docs);
+								return _context.abrupt("return", _context.sent);
 
-							case 4:
+							case 3:
 							case "end":
 								return _context.stop();
 						}
@@ -4783,27 +4784,29 @@ var Schema = function () {
 				}, _callee, this);
 			}));
 
-			function read(_x, _x2) {
+			function create(_x) {
 				return _ref.apply(this, arguments);
 			}
 
-			return read;
+			return create;
 		}()
 	}, {
-		key: "update",
+		key: "read",
 		value: function () {
-			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(selector, data) {
+			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(selector, single) {
+				var docs;
 				return regeneratorRuntime.wrap(function _callee2$(_context2) {
 					while (1) {
 						switch (_context2.prev = _context2.next) {
 							case 0:
 								_context2.next = 2;
-								return this.store.update(this.source, selector, data);
+								return this.store.read(this.source, selector);
 
 							case 2:
-								return _context2.abrupt("return", _context2.sent);
+								docs = _context2.sent;
+								return _context2.abrupt("return", single ? docs[0] : docs);
 
-							case 3:
+							case 4:
 							case "end":
 								return _context2.stop();
 						}
@@ -4811,11 +4814,81 @@ var Schema = function () {
 				}, _callee2, this);
 			}));
 
-			function update(_x3, _x4) {
+			function read(_x2, _x3) {
 				return _ref2.apply(this, arguments);
 			}
 
+			return read;
+		}()
+	}, {
+		key: "update",
+		value: function () {
+			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(selector, data) {
+				return regeneratorRuntime.wrap(function _callee3$(_context3) {
+					while (1) {
+						switch (_context3.prev = _context3.next) {
+							case 0:
+								_context3.next = 2;
+								return this.store.update(this.source, selector, data);
+
+							case 2:
+								return _context3.abrupt("return", _context3.sent);
+
+							case 3:
+							case "end":
+								return _context3.stop();
+						}
+					}
+				}, _callee3, this);
+			}));
+
+			function update(_x4, _x5) {
+				return _ref3.apply(this, arguments);
+			}
+
 			return update;
+		}()
+	}, {
+		key: "getReferenceDocument",
+		value: function () {
+			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(select, many) {
+				var refDoc;
+				return regeneratorRuntime.wrap(function _callee4$(_context4) {
+					while (1) {
+						switch (_context4.prev = _context4.next) {
+							case 0:
+								refDoc = this._referenceDocuments.get(JSON.stringify(select));
+
+								if (refDoc) {
+									_context4.next = 6;
+									break;
+								}
+
+								_context4.next = 4;
+								return this.read(select, !many);
+
+							case 4:
+								refDoc = _context4.sent;
+
+
+								this._referenceDocuments.set(JSON.stringify(select), refDoc);
+
+							case 6:
+								return _context4.abrupt("return", refDoc);
+
+							case 7:
+							case "end":
+								return _context4.stop();
+						}
+					}
+				}, _callee4, this);
+			}));
+
+			function getReferenceDocument(_x6, _x7) {
+				return _ref4.apply(this, arguments);
+			}
+
+			return getReferenceDocument;
 		}()
 	}]);
 
