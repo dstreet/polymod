@@ -153,13 +153,13 @@ Result:
 }
 ```
 
-## Set a document property
+### Set a document property
 
 ```javascript
 await order.set('shipped', true)
 ```
 
-## Get subdocument property
+### Get subdocument property
 
 ```javascript
 order.get('date').get('created')
@@ -172,7 +172,7 @@ Result:
 ### Mutate a document
 
 ```javascript
-await order.mutate('removeProductByTitle', 'JavaScript: The Good Parts`)
+await order.mutate('removeProductByTitle', 'JavaScript: The Good Parts')
 ```
 Result:
 ```javascript
