@@ -89,34 +89,7 @@ class Document {
 
 		return this
 	}
-
-	// async commit() {
-	// 	const dirtyFields = Object.keys(this.fields)
-	// 		.filter(key => this.fields[key].dirty)
-	// 		.map(key => this.fields[key])
-		
-	// 	for (const field of dirtyFields) {
-	// 		const commitData = field.fieldDefinition.commit(field.raw)
-	// 		const refDoc = this.referenceDocuments[field.referenceDocument]
-
-	// 		refDoc.documents = { ...refDoc.documents, ...commitData }
-	// 		field.dirty = false
-	// 	}
-
-	// 	// TODO: Only commit documenents that have changed
-	// 	for (const refDoc of this.referenceDocuments) {
-	// 		if (this.isNew) {
-	// 			const newRefDocuments = await refDoc.schema.create(refDoc.documents)
-
-	// 			refDoc.documents = newRefDocuments
-	// 			refDoc.select = { [refDoc.schema.keyField]: newRefDocuments[refDoc.schema.keyField] }
-	// 			this.isNew = false
-	// 		} else {
-	// 			await refDoc.schema.update(refDoc.select, refDoc.documents)
-	// 		}
-	// 	}
-	// }
-
+	
 	async commit() {
 		const dirtyFields = Object.keys(this.fields)
 			.filter(key => this.fields[key].dirty)

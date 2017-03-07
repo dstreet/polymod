@@ -66,41 +66,8 @@ class Field {
 		this._cachedDocuments
 	}
 
-	// async get(val, all) {
-	// 	const documents = await this.schema.read(this.select(val))
-
-	// 	if (this._multi || all) {
-	// 		this.data = []
-
-	// 		for (const document of documents) {
-	// 			this.data.push(this._get(document))
-	// 		}
-
-	// 		this._cachedDocuments = documents
-	// 	} else {
-	// 		this.data = await this._get(documents[0])
-	// 		this._cachedDocuments = documents[0]
-	// 	}
-
-	// 	return this.data
-	// }
-
 	get cached() {
 		return this._cachedDocuments
-	}
-
-	// async commit(selector, data) {
-	// 	const updatedDocs = await this.schema.update(selector, this._commit(data))
-	// 	this._cachedDocuments = updatedDocs[0]
-
-	// 	return this
-	// }
-
-	async commitNew(data) {
-		const updatedDocs = await this.schema.create(this._commit(data))
-		this._cachedDocuments = updatedDocs[0]
-
-		return this
 	}
 }
 
