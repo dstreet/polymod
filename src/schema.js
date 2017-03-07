@@ -3,10 +3,10 @@ class Schema {
 		this.store = store
 		this.source = source
 		this.keyField = keyField
+		this._referenceDocuments = new Map()
 	}
 
 	async create(data) {
-		console.log(data)
 		return await this.store.create(this.source, data)
 	}
 
@@ -18,6 +18,21 @@ class Schema {
 
 	async update(selector, data) {
 		return await this.store.update(this.source, selector, data)
+	}
+
+	async getReferenceDocument(select, many) {
+		let refDoc = this._referenceDocuments.get(JSON.stringify(select))
+
+		if (!refDoc) {
+			refDoc = await this.read(select, !many)
+
+			this._referenceDocuments.set(
+				JSON.stringify(select),
+				refDoc
+			)
+		}
+
+		return refDoc
 	}
 }
 

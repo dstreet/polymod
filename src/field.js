@@ -56,108 +56,45 @@ class Field {
 		})
 	}
 
-	static Nested(fields) {
-
-		const schema = {
-			async read(selector) {
-				let results = {}
-
-				for (const key in selector) {
-					results = {
-						...results,
-						[key]: await fields[key].schema.read(selector[key])
-					}
-				}
-				
-				return [results]
-			},
-
-			update() {
-				return true
-			}
-		}
-
-		const fieldObj =  new Field(schema, {
-			select: val => {
-				return Object.keys(fields).reduce((acc, key) => {
-					return {
-						...acc,
-						[key]: fields[key].select(val)
-					}
-				}, {})
-			},
-			set: async data => {
-				let results = {}
-
-				for (const key in data) {
-					const setData = fields[key].set ? fields[key].set(data[key]) : data[key]
-
-					results = {
-						...results,
-						[key]: setData
-					}
-				}
-
-				return results
-			},
-			commit: () => {}
-		})
-
-		fieldObj.get = async val => {
-			let results = {}
-
-			for (const key in fields) {
-				results = {
-					...results,
-					[key]: await fields[key].get(val)
-				}
-			}
-
-			return results
-		}
-
-		return fieldObj
-	}
-
 	constructor(schema, { select, get, set, commit, multi }) {
 		this.schema = schema
 		this.select = select
 		this.set = set
-		this._get = get
-		this._commit = commit
+		this.get = get
+		this.commit = commit
 		this._multi = multi || false
 		this._cachedDocuments
 	}
 
-	async get(val, all) {
-		const documents = await this.schema.read(this.select(val))
+	// async get(val, all) {
+	// 	const documents = await this.schema.read(this.select(val))
 
-		if (this._multi || all) {
-			this.data = []
+	// 	if (this._multi || all) {
+	// 		this.data = []
 
-			for (const document of documents) {
-				this.data.push(this._get(document))
-			}
+	// 		for (const document of documents) {
+	// 			this.data.push(this._get(document))
+	// 		}
 
-			this._cachedDocuments = documents
-		} else {
-			this.data = await this._get(documents[0])
-			this._cachedDocuments = documents[0]
-		}
+	// 		this._cachedDocuments = documents
+	// 	} else {
+	// 		this.data = await this._get(documents[0])
+	// 		this._cachedDocuments = documents[0]
+	// 	}
 
-		return this.data
-	}
+	// 	return this.data
+	// }
 
 	get cached() {
 		return this._cachedDocuments
 	}
 
-	async commit(selector, data) {
-		const updatedDocs = await this.schema.update(selector, this._commit(data))
-		this._cachedDocuments = updatedDocs[0]
+	// async commit(selector, data) {
+	// 	const updatedDocs = await this.schema.update(selector, this._commit(data))
+	// 	this._cachedDocuments = updatedDocs[0]
 
-		return this
-	}
+	// 	return this
+	// }
 
 	async commitNew(data) {
 		const updatedDocs = await this.schema.create(this._commit(data))

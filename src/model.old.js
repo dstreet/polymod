@@ -15,8 +15,9 @@ class Model {
 
 		for (const key in this.fields) {
 			const field = this.fields[key]
+			const result = await field.get(val)
 
-			await document.addField(key, field, field.select(val))
+			document.addField(key, field, field.select(val), result)
 		}
 
 		return document
@@ -27,28 +28,16 @@ class Model {
 
 		for (const key in this.fields) {
 			const field = this.fields[key]
-			const refDocs = await field.schema.getReferenceDocument(field.select(val), true)
+			const data = await field.get(val, true)
 
-			for (let i = 0; i < refDocs.length; i++) {
+			data.forEach((item, i) => {
 				if (!documents[i]) documents[i] = new Document(this)
 
-				await documents[i].addFieldWithReference(key, field, field.select(val), refDocs[i])
-			}
+				documents[i].addField(key, field, field.select(val), item)
+			})
 		}
 
 		return documents
-	}
-
-	create() {
-		const document = new Document(this, true)
-
-		for (const key in this.fields) {
-			const field = this.fields[key]
-
-			document.createField(key, field)
-		}
-
-		return document
 	}
 
 	mutation(name, mutation) {
@@ -58,16 +47,26 @@ class Model {
 	}
 
 	asField(many) {
+		let cachedDocument
+
 		return {
 			select: val => val,
-			get: doc => doc,
-			schema: {
-				update: async (select, data) => {
-					return await data.commit()
-				},
-				getReferenceDocument: async select => {
-					return many ? await this.getAll(select) : await this.get(select)
+			get: async val => {
+				const doc = many ? await this.getAll(val) : await this.get(val)
+				
+				cachedDocument = doc
+				return doc
+			},
+			set: async data => {
+				for (const key in data) {
+					await cachedDocument.set(key, data[key])
 				}
+
+				return cachedDocument
+			},
+			cache: cachedDocument,
+			commit: async () => {
+				await cachedDocument.commit()
 			}
 		}
 	}
