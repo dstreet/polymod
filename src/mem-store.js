@@ -1,5 +1,6 @@
 const uuid = require('uuid')
 const validate = require('uuid-validate')
+const sift = require('sift')
 
 class MemStore {
 	constructor(initData = {}) {
@@ -30,13 +31,7 @@ class MemStore {
 			return this._data[source].filter(selector)
 		}
 
-		return this._data[source].filter(doc => {
-			for (const key in selector) {
-				if (doc[key] !== selector[key]) return false
-			}
-
-			return true
-		})
+		return sift(selector, this._data[source])
 	}
 
 	async update(source, selector, data) {
@@ -48,12 +43,7 @@ class MemStore {
 			if (typeof selector === 'function') {
 				matched = selector(doc)
 			} else {
-				for (const key in selector) {
-					if (doc[key] !== selector[key]) {
-						matched = false
-						break
-					}
-				}
+				matched = sift(selector)(doc)
 			}
 
 			if (matched) {
@@ -76,11 +66,10 @@ class MemStore {
 		const docs = this._data[source].reduce((acc, doc) => {
 			let matched = true
 
-			for (const key in selector) {
-				if (doc[key] !== selector[key]) {
-					matched = false
-					break
-				}
+			if (typeof selector === 'function') {
+				matched = selector(doc)
+			} else {
+				matched = sift(selector)(doc)
 			}
 
 			if (matched) {

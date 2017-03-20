@@ -1,7 +1,7 @@
 module.exports = {
 	Model: require('./src/model'),
 	Document: require('./src/document'),
-	Field: require('./src/field'),
+	Query: require('./src/query'),
 	Schema: require('./src/schema'),
 	MemStore: require('./src/mem-store')
 }

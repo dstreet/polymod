@@ -20,6 +20,10 @@ class Schema {
 		return await this.store.update(this.source, selector, data)
 	}
 
+	async del(selector) {
+		return await this.store.del(this.source, selector)
+	}
+
 	async getReferenceDocument(select, many) {
 		let refDoc = this._referenceDocuments.get(JSON.stringify(select))
 
