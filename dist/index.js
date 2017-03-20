@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 314);
+/******/ 	return __webpack_require__(__webpack_require__.s = 315);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -2587,488 +2587,65 @@ addToUnscopables('entries');
 "use strict";
 
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Document = function () {
-	function Document(model, isNew) {
+	function Document(model, data, input, query, rawData) {
 		_classCallCheck(this, Document);
 
 		this.model = model;
-		this.isNew = isNew;
-		this.fields = {};
-		this.schemaRefMap = [];
+		this._data = data;
+		this._rawData = rawData;
+		this.input = input;
+		this.query = query;
 	}
 
+	/**
+  * The document data
+  * 
+  * @readonly
+  * 
+  * @memberOf Document
+  */
+
+
 	_createClass(Document, [{
-		key: 'addField',
-		value: function () {
-			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(fieldName, fieldDefinition, select) {
-				var refDoc;
-				return regeneratorRuntime.wrap(function _callee$(_context) {
-					while (1) {
-						switch (_context.prev = _context.next) {
-							case 0:
-								_context.next = 2;
-								return fieldDefinition.schema.getReferenceDocument(select);
+		key: "mutate",
 
-							case 2:
-								refDoc = _context.sent;
-								_context.next = 5;
-								return this.addFieldWithReference(fieldName, fieldDefinition, select, refDoc);
 
-							case 5:
-								return _context.abrupt('return', this);
+		/**
+   * Apply a mutation to the document
+   * 
+   * @param {String} name 
+   * @param {any} data 
+   * @returns {Document}
+   * 
+   * @memberOf Document
+   */
+		value: function mutate(name, data) {
+			return this.model.mutate(name, this.input, this.query, data, this._rawData);
+		}
 
-							case 6:
-							case 'end':
-								return _context.stop();
-						}
-					}
-				}, _callee, this);
-			}));
+		/**
+   * Delete the document
+   * 
+   * @returns {Object}
+   * 
+   * @memberOf Document
+   */
 
-			function addField(_x, _x2, _x3) {
-				return _ref.apply(this, arguments);
-			}
-
-			return addField;
-		}()
 	}, {
-		key: 'addFieldWithReference',
-		value: function () {
-			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(fieldName, fieldDefinition, select, refDoc) {
-				return regeneratorRuntime.wrap(function _callee2$(_context2) {
-					while (1) {
-						switch (_context2.prev = _context2.next) {
-							case 0:
-								if (!this.schemaRefMap.find(function (item) {
-									return item.document === refDoc;
-								})) {
-									this.schemaRefMap.push({ schema: fieldDefinition.schema, document: refDoc, select: select });
-								}
-
-								_context2.t0 = fieldDefinition;
-								_context2.t1 = refDoc;
-								_context2.next = 5;
-								return fieldDefinition.get(refDoc);
-
-							case 5:
-								_context2.t2 = _context2.sent;
-								this.fields[fieldName] = {
-									fieldDefinition: _context2.t0,
-									referenceDocument: _context2.t1,
-									data: _context2.t2,
-									dirty: false
-								};
-								return _context2.abrupt('return', this);
-
-							case 8:
-							case 'end':
-								return _context2.stop();
-						}
-					}
-				}, _callee2, this);
-			}));
-
-			function addFieldWithReference(_x4, _x5, _x6, _x7) {
-				return _ref2.apply(this, arguments);
-			}
-
-			return addFieldWithReference;
-		}()
-	}, {
-		key: 'createField',
-		value: function createField(fieldName, fieldDefinition) {
-			var select = fieldDefinition.select;
-			var refDoc = {};
-
-			if (!this.schemaRefMap.find(function (item) {
-				return item.document === refDoc;
-			})) {
-				this.schemaRefMap.push({ schema: fieldDefinition.schema, document: refDoc, select: select });
-			}
-
-			this.fields[fieldName] = {
-				fieldDefinition: fieldDefinition,
-				referenceDocument: refDoc,
-				data: undefined,
-				dirty: false
-			};
-
-			return this;
+		key: "del",
+		value: function del() {
+			return this.model.del(this.input, this.query);
 		}
 	}, {
-		key: 'get',
-		value: function get(fieldName) {
-			return this.fields[fieldName].data;
+		key: "data",
+		get: function get() {
+			return Object.assign({}, this._data);
 		}
-	}, {
-		key: 'getFieldDocument',
-		value: function getFieldDocument(fieldName) {
-			var field = this.fields[fieldName];
-			return field.referenceDocument;
-		}
-	}, {
-		key: 'set',
-		value: function () {
-			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(fieldName, data) {
-				var key, field, _field;
-
-				return regeneratorRuntime.wrap(function _callee3$(_context3) {
-					while (1) {
-						switch (_context3.prev = _context3.next) {
-							case 0:
-								if (!((typeof fieldName === 'undefined' ? 'undefined' : _typeof(fieldName)) === 'object')) {
-									_context3.next = 12;
-									break;
-								}
-
-								_context3.t0 = regeneratorRuntime.keys(fieldName);
-
-							case 2:
-								if ((_context3.t1 = _context3.t0()).done) {
-									_context3.next = 10;
-									break;
-								}
-
-								key = _context3.t1.value;
-								field = this.fields[key];
-
-								if (!field) {
-									_context3.next = 8;
-									break;
-								}
-
-								_context3.next = 8;
-								return this._setField(field, fieldName[key]);
-
-							case 8:
-								_context3.next = 2;
-								break;
-
-							case 10:
-								_context3.next = 16;
-								break;
-
-							case 12:
-								_field = this.fields[fieldName];
-
-								if (!_field) {
-									_context3.next = 16;
-									break;
-								}
-
-								_context3.next = 16;
-								return this._setField(_field, data);
-
-							case 16:
-								return _context3.abrupt('return', this);
-
-							case 17:
-							case 'end':
-								return _context3.stop();
-						}
-					}
-				}, _callee3, this);
-			}));
-
-			function set(_x8, _x9) {
-				return _ref3.apply(this, arguments);
-			}
-
-			return set;
-		}()
-	}, {
-		key: '_setField',
-		value: function () {
-			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(field, data) {
-				return regeneratorRuntime.wrap(function _callee4$(_context4) {
-					while (1) {
-						switch (_context4.prev = _context4.next) {
-							case 0:
-								if (!field.fieldDefinition.set) {
-									_context4.next = 6;
-									break;
-								}
-
-								_context4.next = 3;
-								return field.fieldDefinition.set(data);
-
-							case 3:
-								_context4.t0 = _context4.sent;
-								_context4.next = 7;
-								break;
-
-							case 6:
-								_context4.t0 = data;
-
-							case 7:
-								field.data = _context4.t0;
-
-								field.raw = data;
-								field.dirty = true;
-
-							case 10:
-							case 'end':
-								return _context4.stop();
-						}
-					}
-				}, _callee4, this);
-			}));
-
-			function _setField(_x10, _x11) {
-				return _ref4.apply(this, arguments);
-			}
-
-			return _setField;
-		}()
-	}, {
-		key: 'mutate',
-		value: function () {
-			var _ref5 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(name, data) {
-				var mutation, docFields, key;
-				return regeneratorRuntime.wrap(function _callee5$(_context5) {
-					while (1) {
-						switch (_context5.prev = _context5.next) {
-							case 0:
-								mutation = this.model.mutation[name];
-								_context5.next = 3;
-								return mutation(this, data);
-
-							case 3:
-								docFields = _context5.sent;
-								_context5.t0 = regeneratorRuntime.keys(docFields);
-
-							case 5:
-								if ((_context5.t1 = _context5.t0()).done) {
-									_context5.next = 11;
-									break;
-								}
-
-								key = _context5.t1.value;
-								_context5.next = 9;
-								return this.set(key, docFields[key]);
-
-							case 9:
-								_context5.next = 5;
-								break;
-
-							case 11:
-								return _context5.abrupt('return', this);
-
-							case 12:
-							case 'end':
-								return _context5.stop();
-						}
-					}
-				}, _callee5, this);
-			}));
-
-			function mutate(_x12, _x13) {
-				return _ref5.apply(this, arguments);
-			}
-
-			return mutate;
-		}()
-
-		// async commit() {
-		// 	const dirtyFields = Object.keys(this.fields)
-		// 		.filter(key => this.fields[key].dirty)
-		// 		.map(key => this.fields[key])
-
-		// 	for (const field of dirtyFields) {
-		// 		const commitData = field.fieldDefinition.commit(field.raw)
-		// 		const refDoc = this.referenceDocuments[field.referenceDocument]
-
-		// 		refDoc.documents = { ...refDoc.documents, ...commitData }
-		// 		field.dirty = false
-		// 	}
-
-		// 	// TODO: Only commit documenents that have changed
-		// 	for (const refDoc of this.referenceDocuments) {
-		// 		if (this.isNew) {
-		// 			const newRefDocuments = await refDoc.schema.create(refDoc.documents)
-
-		// 			refDoc.documents = newRefDocuments
-		// 			refDoc.select = { [refDoc.schema.keyField]: newRefDocuments[refDoc.schema.keyField] }
-		// 			this.isNew = false
-		// 		} else {
-		// 			await refDoc.schema.update(refDoc.select, refDoc.documents)
-		// 		}
-		// 	}
-		// }
-
-	}, {
-		key: 'commit',
-		value: function () {
-			var _ref6 = _asyncToGenerator(regeneratorRuntime.mark(function _callee6() {
-				var _this = this;
-
-				var dirtyFields, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, field, commitData, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _iterator2, _step2, schemaRef, newRefDocument, select, key;
-
-				return regeneratorRuntime.wrap(function _callee6$(_context6) {
-					while (1) {
-						switch (_context6.prev = _context6.next) {
-							case 0:
-								dirtyFields = Object.keys(this.fields).filter(function (key) {
-									return _this.fields[key].dirty;
-								}).map(function (key) {
-									return _this.fields[key];
-								});
-								_iteratorNormalCompletion = true;
-								_didIteratorError = false;
-								_iteratorError = undefined;
-								_context6.prev = 4;
-
-
-								for (_iterator = dirtyFields[Symbol.iterator](); !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-									field = _step.value;
-									commitData = field.fieldDefinition.commit(field.raw);
-
-
-									Object.assign(field.referenceDocument, commitData);
-									field.dirty = false;
-								}
-
-								_context6.next = 12;
-								break;
-
-							case 8:
-								_context6.prev = 8;
-								_context6.t0 = _context6['catch'](4);
-								_didIteratorError = true;
-								_iteratorError = _context6.t0;
-
-							case 12:
-								_context6.prev = 12;
-								_context6.prev = 13;
-
-								if (!_iteratorNormalCompletion && _iterator.return) {
-									_iterator.return();
-								}
-
-							case 15:
-								_context6.prev = 15;
-
-								if (!_didIteratorError) {
-									_context6.next = 18;
-									break;
-								}
-
-								throw _iteratorError;
-
-							case 18:
-								return _context6.finish(15);
-
-							case 19:
-								return _context6.finish(12);
-
-							case 20:
-								_iteratorNormalCompletion2 = true;
-								_didIteratorError2 = false;
-								_iteratorError2 = undefined;
-								_context6.prev = 23;
-								_iterator2 = this.schemaRefMap[Symbol.iterator]();
-
-							case 25:
-								if (_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done) {
-									_context6.next = 43;
-									break;
-								}
-
-								schemaRef = _step2.value;
-
-								if (!this.isNew) {
-									_context6.next = 38;
-									break;
-								}
-
-								_context6.next = 30;
-								return schemaRef.schema.create(schemaRef.document);
-
-							case 30:
-								newRefDocument = _context6.sent;
-								select = _defineProperty({}, schemaRef.schema.keyField, newRefDocument[schemaRef.schema.keyField]);
-
-
-								for (key in this.fields) {
-									if (this.fields[key].referenceDocument === schemaRef.document) {
-										this.fields[key].referenceDocument = newRefDocument;
-									}
-								}
-
-								schemaRef.document = newRefDocument;
-								schemaRef.select = select;
-
-								this.isNew = false;
-								_context6.next = 40;
-								break;
-
-							case 38:
-								_context6.next = 40;
-								return schemaRef.schema.update(schemaRef.select, schemaRef.document);
-
-							case 40:
-								_iteratorNormalCompletion2 = true;
-								_context6.next = 25;
-								break;
-
-							case 43:
-								_context6.next = 49;
-								break;
-
-							case 45:
-								_context6.prev = 45;
-								_context6.t1 = _context6['catch'](23);
-								_didIteratorError2 = true;
-								_iteratorError2 = _context6.t1;
-
-							case 49:
-								_context6.prev = 49;
-								_context6.prev = 50;
-
-								if (!_iteratorNormalCompletion2 && _iterator2.return) {
-									_iterator2.return();
-								}
-
-							case 52:
-								_context6.prev = 52;
-
-								if (!_didIteratorError2) {
-									_context6.next = 55;
-									break;
-								}
-
-								throw _iteratorError2;
-
-							case 55:
-								return _context6.finish(52);
-
-							case 56:
-								return _context6.finish(49);
-
-							case 57:
-							case 'end':
-								return _context6.stop();
-						}
-					}
-				}, _callee6, this, [[4, 8, 12, 20], [13,, 15, 19], [23, 45, 49, 57], [50,, 52, 56]]);
-			}));
-
-			function commit() {
-				return _ref6.apply(this, arguments);
-			}
-
-			return commit;
-		}()
 	}]);
 
 	return Document;
@@ -3892,11 +3469,11 @@ module.exports = rng;
 
 
 module.exports = {
-	Model: __webpack_require__(121),
+	Model: __webpack_require__(120),
 	Document: __webpack_require__(86),
-	Field: __webpack_require__(119),
+	Query: __webpack_require__(121),
 	Schema: __webpack_require__(122),
-	MemStore: __webpack_require__(120)
+	MemStore: __webpack_require__(119)
 };
 
 /***/ }),
@@ -3941,343 +3518,6 @@ define(String.prototype, "padRight", "".padEnd);
 "use strict";
 
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Field = function () {
-	_createClass(Field, null, [{
-		key: 'FromSchemaField',
-		value: function FromSchemaField(schema, getField, _selectField) {
-			var selectField = _selectField || schema.keyField;
-
-			return new Field(schema, {
-				select: function select(key) {
-					return _defineProperty({}, selectField, key);
-				},
-				get: function get(doc) {
-					return doc[getField];
-				},
-				commit: function commit(data) {
-					return _defineProperty({}, getField, data);
-				}
-			});
-		}
-	}, {
-		key: 'LinkDocument',
-		value: function LinkDocument(key, related, join, fieldMap, relationship) {
-			var _this = this;
-
-			var getOneRelated = function () {
-				var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee(relatedId) {
-					return regeneratorRuntime.wrap(function _callee$(_context) {
-						while (1) {
-							switch (_context.prev = _context.next) {
-								case 0:
-									_context.next = 2;
-									return related.schema.read(_defineProperty({}, related.select || related.schema.keyField, relatedId));
-
-								case 2:
-									return _context.abrupt('return', _context.sent);
-
-								case 3:
-								case 'end':
-									return _context.stop();
-							}
-						}
-					}, _callee, this);
-				}));
-
-				return function getOneRelated(_x) {
-					return _ref3.apply(this, arguments);
-				};
-			}();
-
-			var getManyRelated = function () {
-				var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(relatedIds) {
-					var docs, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, relatedId;
-
-					return regeneratorRuntime.wrap(function _callee2$(_context2) {
-						while (1) {
-							switch (_context2.prev = _context2.next) {
-								case 0:
-									docs = [];
-									_iteratorNormalCompletion = true;
-									_didIteratorError = false;
-									_iteratorError = undefined;
-									_context2.prev = 4;
-									_iterator = relatedIds[Symbol.iterator]();
-
-								case 6:
-									if (_iteratorNormalCompletion = (_step = _iterator.next()).done) {
-										_context2.next = 16;
-										break;
-									}
-
-									relatedId = _step.value;
-									_context2.t0 = docs;
-									_context2.next = 11;
-									return related.schema.read(_defineProperty({}, related.select || related.schema.keyField, relatedId), true);
-
-								case 11:
-									_context2.t1 = _context2.sent;
-
-									_context2.t0.push.call(_context2.t0, _context2.t1);
-
-								case 13:
-									_iteratorNormalCompletion = true;
-									_context2.next = 6;
-									break;
-
-								case 16:
-									_context2.next = 22;
-									break;
-
-								case 18:
-									_context2.prev = 18;
-									_context2.t2 = _context2['catch'](4);
-									_didIteratorError = true;
-									_iteratorError = _context2.t2;
-
-								case 22:
-									_context2.prev = 22;
-									_context2.prev = 23;
-
-									if (!_iteratorNormalCompletion && _iterator.return) {
-										_iterator.return();
-									}
-
-								case 25:
-									_context2.prev = 25;
-
-									if (!_didIteratorError) {
-										_context2.next = 28;
-										break;
-									}
-
-									throw _iteratorError;
-
-								case 28:
-									return _context2.finish(25);
-
-								case 29:
-									return _context2.finish(22);
-
-								case 30:
-									return _context2.abrupt('return', docs);
-
-								case 31:
-								case 'end':
-									return _context2.stop();
-							}
-						}
-					}, _callee2, this, [[4, 18, 22, 30], [23,, 25, 29]]);
-				}));
-
-				return function getManyRelated(_x2) {
-					return _ref4.apply(this, arguments);
-				};
-			}();
-
-			return new Field(key.schema, {
-				select: function select(keyVal) {
-					return _defineProperty({}, key.select || key.schema.keyField, keyVal);
-				},
-				getRaw: function getRaw(doc) {
-					return doc[join];
-				},
-				get: function () {
-					var _ref6 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(doc) {
-						var relatedId, relatedDocs;
-						return regeneratorRuntime.wrap(function _callee3$(_context3) {
-							while (1) {
-								switch (_context3.prev = _context3.next) {
-									case 0:
-										relatedId = doc[join];
-										relatedDocs = void 0;
-
-										if (!(relationship === 'ONE_TO_MANY')) {
-											_context3.next = 7;
-											break;
-										}
-
-										_context3.next = 5;
-										return getManyRelated(relatedId);
-
-									case 5:
-										relatedDocs = _context3.sent;
-										return _context3.abrupt('return', relatedDocs.map(fieldMap));
-
-									case 7:
-										_context3.next = 9;
-										return getOneRelated(relatedId);
-
-									case 9:
-										relatedDocs = _context3.sent;
-										return _context3.abrupt('return', relatedDocs.map(fieldMap)[0]);
-
-									case 11:
-									case 'end':
-										return _context3.stop();
-								}
-							}
-						}, _callee3, _this);
-					}));
-
-					return function get(_x3) {
-						return _ref6.apply(this, arguments);
-					};
-				}(),
-				set: function () {
-					var _ref7 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(relatedId) {
-						var relatedDocs;
-						return regeneratorRuntime.wrap(function _callee4$(_context4) {
-							while (1) {
-								switch (_context4.prev = _context4.next) {
-									case 0:
-										relatedDocs = void 0;
-
-										if (!(relationship === 'ONE_TO_MANY')) {
-											_context4.next = 6;
-											break;
-										}
-
-										_context4.next = 4;
-										return getManyRelated(relatedId);
-
-									case 4:
-										relatedDocs = _context4.sent;
-										return _context4.abrupt('return', relatedDocs.map(fieldMap));
-
-									case 6:
-										_context4.next = 8;
-										return getOneRelated(relatedId);
-
-									case 8:
-										relatedDocs = _context4.sent;
-										return _context4.abrupt('return', relatedDocs.map(fieldMap)[0]);
-
-									case 10:
-									case 'end':
-										return _context4.stop();
-								}
-							}
-						}, _callee4, _this);
-					}));
-
-					return function set(_x4) {
-						return _ref7.apply(this, arguments);
-					};
-				}(),
-				commit: function commit(relatedId) {
-					return _defineProperty({}, join, relatedId);
-				}
-			});
-		}
-	}]);
-
-	function Field(schema, _ref9) {
-		var select = _ref9.select,
-		    get = _ref9.get,
-		    set = _ref9.set,
-		    commit = _ref9.commit,
-		    multi = _ref9.multi;
-
-		_classCallCheck(this, Field);
-
-		this.schema = schema;
-		this.select = select;
-		this.set = set;
-		this.get = get;
-		this.commit = commit;
-		this._multi = multi || false;
-		this._cachedDocuments;
-	}
-
-	// async get(val, all) {
-	// 	const documents = await this.schema.read(this.select(val))
-
-	// 	if (this._multi || all) {
-	// 		this.data = []
-
-	// 		for (const document of documents) {
-	// 			this.data.push(this._get(document))
-	// 		}
-
-	// 		this._cachedDocuments = documents
-	// 	} else {
-	// 		this.data = await this._get(documents[0])
-	// 		this._cachedDocuments = documents[0]
-	// 	}
-
-	// 	return this.data
-	// }
-
-	_createClass(Field, [{
-		key: 'commitNew',
-
-
-		// async commit(selector, data) {
-		// 	const updatedDocs = await this.schema.update(selector, this._commit(data))
-		// 	this._cachedDocuments = updatedDocs[0]
-
-		// 	return this
-		// }
-
-		value: function () {
-			var _ref10 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(data) {
-				var updatedDocs;
-				return regeneratorRuntime.wrap(function _callee5$(_context5) {
-					while (1) {
-						switch (_context5.prev = _context5.next) {
-							case 0:
-								_context5.next = 2;
-								return this.schema.create(this._commit(data));
-
-							case 2:
-								updatedDocs = _context5.sent;
-
-								this._cachedDocuments = updatedDocs[0];
-
-								return _context5.abrupt('return', this);
-
-							case 5:
-							case 'end':
-								return _context5.stop();
-						}
-					}
-				}, _callee5, this);
-			}));
-
-			function commitNew(_x5) {
-				return _ref10.apply(this, arguments);
-			}
-
-			return commitNew;
-		}()
-	}, {
-		key: 'cached',
-		get: function get() {
-			return this._cachedDocuments;
-		}
-	}]);
-
-	return Field;
-}();
-
-module.exports = Field;
-
-/***/ }),
-/* 120 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -4288,8 +3528,9 @@ function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, a
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var uuid = __webpack_require__(311);
-var validate = __webpack_require__(310);
+var uuid = __webpack_require__(312);
+var validate = __webpack_require__(311);
+var sift = __webpack_require__(310);
 
 var MemStore = function () {
 	function MemStore() {
@@ -4360,13 +3601,7 @@ var MemStore = function () {
 								return _context2.abrupt('return', this._data[source].filter(selector));
 
 							case 4:
-								return _context2.abrupt('return', this._data[source].filter(function (doc) {
-									for (var key in selector) {
-										if (doc[key] !== selector[key]) return false;
-									}
-
-									return true;
-								}));
+								return _context2.abrupt('return', sift(selector, this._data[source]));
 
 							case 5:
 							case 'end':
@@ -4399,12 +3634,7 @@ var MemStore = function () {
 									if (typeof selector === 'function') {
 										matched = selector(doc);
 									} else {
-										for (var key in selector) {
-											if (doc[key] !== selector[key]) {
-												matched = false;
-												break;
-											}
-										}
+										matched = sift(selector)(doc);
 									}
 
 									if (matched) {
@@ -4449,11 +3679,10 @@ var MemStore = function () {
 								docs = this._data[source].reduce(function (acc, doc) {
 									var matched = true;
 
-									for (var key in selector) {
-										if (doc[key] !== selector[key]) {
-											matched = false;
-											break;
-										}
+									if (typeof selector === 'function') {
+										matched = selector(doc);
+									} else {
+										matched = sift(selector)(doc);
 									}
 
 									if (matched) {
@@ -4496,13 +3725,17 @@ var MemStore = function () {
 module.exports = MemStore;
 
 /***/ }),
-/* 121 */
+/* 120 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
@@ -4511,108 +3744,348 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var Document = __webpack_require__(86);
 
 var Model = function () {
-	function Model(fields) {
+	function Model() {
 		_classCallCheck(this, Model);
 
-		this.fields = fields;
-		this.mutations = {};
+		this.sources = [];
+		this.boundSources = [];
+		this.mutations = [];
+		this.queries = [];
+		this.initializers = [];
+		this.dataMap = function (data) {
+			return data;
+		};
 	}
 
+	/**
+  * Create a new model
+  * 
+  * @static
+  * @returns {Model}
+  * 
+  * @memberOf Model
+  */
+
+
 	_createClass(Model, [{
-		key: 'get',
+		key: 'addSource',
+
+
+		/**
+   * Add a source to the model
+   * 
+   * Souces are used to populate data into the model. A source can either be
+   * a single Schema, or [Schema] to denote that multipe records should
+   * be pulled from the schema.
+   * 
+   * @param {String} name 
+   * @param {Schema|Schema[]} schema
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+		value: function addSource(name, schema) {
+			var many = Array.isArray(schema);
+
+			this.sources.push({ name: name, schema: many ? schema[0] : schema, many: many });
+			return this;
+		}
+
+		/**
+   * Add a bound source
+   * 
+   * A bound source is a source that can delete its records
+   * 
+   * @param {String} name 
+   * @param {Schema|Schema[]} schema 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'addBoundSource',
+		value: function addBoundSource(name) {
+			for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+				args[_key - 1] = arguments[_key];
+			}
+
+			this.addSource.apply(this, [name].concat(args));
+			this.boundSources.push(name);
+			return this;
+		}
+
+		/**
+   * Add a mutation
+   * 
+   * A mutation is a method used to change the source data in some way.
+   * It is the only means of updating data in the model.
+   * 
+   * The `fn` parameter is a function that will receive the input data,
+   * and the currently available document data. It should return an array
+   * 
+   * **Example**
+   * 
+   * ```javascript
+   * .addMutation('updateTitle', (title, data) => ([
+   * 		{ source: 'post', data: { title } }
+   * ])
+   * ```
+   * 
+   * @param {String} name 
+   * @param {Function} fn 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'addMutation',
+		value: function addMutation(name, fn) {
+			this.mutations.push({ name: name, fn: fn });
+			return this;
+		}
+
+		/**
+   * Add a new query
+   * 
+   * Queries allow data to be pulled into the model. They provide the
+   * source populations methods.
+   * 
+   * A query with the name 'default' is required.
+   * 
+   * @param {String} name 
+   * @param {Query} query 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'addQuery',
+		value: function addQuery(name, query) {
+			this.queries.push({ name: name, query: query });
+			return this;
+		}
+
+		/**
+   * Add a source initializer
+   * 
+   * Initializers are used to create new source records. When using
+   * `Model.create()`, initializers are executed in the order in which
+   * the sources are populated in the default query.
+   * 
+   * The `init` parameter is a function that will receive the input data,
+   * and the currently available document data. It should return a query
+   * in whatever form the data store requires.
+   * 
+   * **Example**
+   * 
+   * ```javascript
+   * .addInitializer('post', (postData, data) => ({
+   * 		title: data.title,
+   * 		content: data.content
+   * }))
+   * ```
+   * 
+   * @param {String} sourceName 
+   * @param {Function} init 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'addInitializer',
+		value: function addInitializer(sourceName, init) {
+			this.initializers.push({ source: sourceName, init: init });
+			return this;
+		}
+
+		/**
+   * Add sources to be bound
+   * 
+   * @param {String[]} sourceNames 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'bindSources',
+		value: function bindSources(sourceNames) {
+			this.boundSources = this.boundSources.concat(sourceNames);
+			return this;
+		}
+
+		/**
+   * Add the source map
+   * 
+   * This is a function that should map the data from the
+   * sources to a final model document.
+   * 
+   * If not defined, all source data is passed to the document.
+   * 
+   * **Example**
+   * 
+   * ```javascript
+   * .map(data => ({
+   * 		title: data.post.title,
+   * 		content: data.post.content,
+   * 		foo: 'bar'
+   * }))
+   * ```
+   * 
+   * @param {Function} dataMap 
+   * @returns {Model}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'map',
+		value: function map(dataMap) {
+			this.dataMap = dataMap;
+			return this;
+		}
+
+		/**
+   * Execute a query
+   * 
+   * If the query is configured as `multi`, this will return
+   * and array of Documents.
+   * 
+   * @param {String} queryName 
+   * @param {any} inputData 
+   * @returns {Document|Document[]}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'query',
 		value: function () {
-			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(val) {
-				var document, key, field;
+			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(queryName, inputData) {
+				var _this = this;
+
+				var query, rawData, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, item, source, select, sourceData;
+
 				return regeneratorRuntime.wrap(function _callee$(_context) {
 					while (1) {
 						switch (_context.prev = _context.next) {
 							case 0:
-								document = new Document(this);
-								_context.t0 = regeneratorRuntime.keys(this.fields);
+								query = this._getQuery(queryName);
+								rawData = query.inputs.toSource(inputData);
+								_iteratorNormalCompletion = true;
+								_didIteratorError = false;
+								_iteratorError = undefined;
+								_context.prev = 5;
+								_iterator = query.populations[Symbol.iterator]();
 
-							case 2:
-								if ((_context.t1 = _context.t0()).done) {
-									_context.next = 9;
+							case 7:
+								if (_iteratorNormalCompletion = (_step = _iterator.next()).done) {
+									_context.next = 18;
 									break;
 								}
 
-								key = _context.t1.value;
-								field = this.fields[key];
-								_context.next = 7;
-								return document.addField(key, field, field.select(val));
+								item = _step.value;
+								source = this._getSource(item.source);
+								select = item.select(rawData);
+								_context.next = 13;
+								return this._readFromSchema(source.schema, select, source.many);
 
-							case 7:
-								_context.next = 2;
+							case 13:
+								sourceData = _context.sent;
+
+								rawData = _extends({}, rawData, _defineProperty({}, source.name, sourceData));
+
+							case 15:
+								_iteratorNormalCompletion = true;
+								_context.next = 7;
 								break;
 
-							case 9:
-								return _context.abrupt('return', document);
+							case 18:
+								_context.next = 24;
+								break;
 
-							case 10:
+							case 20:
+								_context.prev = 20;
+								_context.t0 = _context['catch'](5);
+								_didIteratorError = true;
+								_iteratorError = _context.t0;
+
+							case 24:
+								_context.prev = 24;
+								_context.prev = 25;
+
+								if (!_iteratorNormalCompletion && _iterator.return) {
+									_iterator.return();
+								}
+
+							case 27:
+								_context.prev = 27;
+
+								if (!_didIteratorError) {
+									_context.next = 30;
+									break;
+								}
+
+								throw _iteratorError;
+
+							case 30:
+								return _context.finish(27);
+
+							case 31:
+								return _context.finish(24);
+
+							case 32:
+								if (!query.multi) {
+									_context.next = 36;
+									break;
+								}
+
+								return _context.abrupt('return', query.dataMap(rawData).map(function (item) {
+									return new Document(_this, _this.dataMap(item), inputData, queryName, item);
+								}));
+
+							case 36:
+								return _context.abrupt('return', new Document(this, this.dataMap(rawData), inputData, queryName, rawData));
+
+							case 37:
 							case 'end':
 								return _context.stop();
 						}
 					}
-				}, _callee, this);
+				}, _callee, this, [[5, 20, 24, 32], [25,, 27, 31]]);
 			}));
 
-			function get(_x) {
+			function query(_x, _x2) {
 				return _ref.apply(this, arguments);
 			}
 
-			return get;
+			return query;
 		}()
+
+		/**
+   * Execute the default query
+   * 
+   * @param {any} input 
+   * @returns {Document|Document[]}
+   * 
+   * @memberOf Model
+   */
+
 	}, {
-		key: 'getAll',
+		key: 'get',
 		value: function () {
-			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(val) {
-				var documents, key, field, refDocs, i;
+			var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(input) {
 				return regeneratorRuntime.wrap(function _callee2$(_context2) {
 					while (1) {
 						switch (_context2.prev = _context2.next) {
 							case 0:
-								documents = [];
-								_context2.t0 = regeneratorRuntime.keys(this.fields);
+								return _context2.abrupt('return', this.query('default', input));
 
-							case 2:
-								if ((_context2.t1 = _context2.t0()).done) {
-									_context2.next = 18;
-									break;
-								}
-
-								key = _context2.t1.value;
-								field = this.fields[key];
-								_context2.next = 7;
-								return field.schema.getReferenceDocument(field.select(val), true);
-
-							case 7:
-								refDocs = _context2.sent;
-								i = 0;
-
-							case 9:
-								if (!(i < refDocs.length)) {
-									_context2.next = 16;
-									break;
-								}
-
-								if (!documents[i]) documents[i] = new Document(this);
-
-								_context2.next = 13;
-								return documents[i].addFieldWithReference(key, field, field.select(val), refDocs[i]);
-
-							case 13:
-								i++;
-								_context2.next = 9;
-								break;
-
-							case 16:
-								_context2.next = 2;
-								break;
-
-							case 18:
-								return _context2.abrupt('return', documents);
-
-							case 19:
+							case 1:
 							case 'end':
 								return _context2.stop();
 						}
@@ -4620,117 +4093,476 @@ var Model = function () {
 				}, _callee2, this);
 			}));
 
-			function getAll(_x2) {
+			function get(_x3) {
 				return _ref2.apply(this, arguments);
 			}
 
-			return getAll;
+			return get;
 		}()
+
+		/**
+   * Apply a mutation
+   * 
+   * @param {String} name 
+   * @param {any} queryInput 
+   * @param {String} queryName 
+   * @param {Object} data 
+   * @param {Object} docData 
+   * @returns {Document|Document[]}
+   * 
+   * @memberOf Model
+   */
+
 	}, {
-		key: 'create',
-		value: function create() {
-			var document = new Document(this, true);
+		key: 'mutate',
+		value: function () {
+			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(name, queryInput, queryName, data, docData) {
+				var _this2 = this;
 
-			for (var key in this.fields) {
-				var field = this.fields[key];
+				var query, mutation, inputData, sourceData, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _loop, _iterator2, _step2;
 
-				document.createField(key, field);
+				return regeneratorRuntime.wrap(function _callee3$(_context4) {
+					while (1) {
+						switch (_context4.prev = _context4.next) {
+							case 0:
+								query = this._getQuery(queryName || 'default');
+								mutation = this._getMutation(name);
+								inputData = query.inputs.toSource(queryInput);
+								sourceData = mutation.fn(data, docData);
+								_iteratorNormalCompletion2 = true;
+								_didIteratorError2 = false;
+								_iteratorError2 = undefined;
+								_context4.prev = 7;
+								_loop = regeneratorRuntime.mark(function _loop() {
+									var item, source, population;
+									return regeneratorRuntime.wrap(function _loop$(_context3) {
+										while (1) {
+											switch (_context3.prev = _context3.next) {
+												case 0:
+													item = _step2.value;
+													source = _this2._getSource(item.source);
+													population = query.populations.find(function (pop) {
+														return pop.source === item.source;
+													});
+													_context3.t0 = item.operation;
+													_context3.next = _context3.t0 === 'create' ? 6 : _context3.t0 === 'delete' ? 9 : 12;
+													break;
+
+												case 6:
+													_context3.next = 8;
+													return source.schema.create(item.data);
+
+												case 8:
+													return _context3.abrupt('break', 14);
+
+												case 9:
+													_context3.next = 11;
+													return source.schema.del(item.data);
+
+												case 11:
+													return _context3.abrupt('break', 14);
+
+												case 12:
+													_context3.next = 14;
+													return source.schema.update(population.select(inputData), item.data);
+
+												case 14:
+												case 'end':
+													return _context3.stop();
+											}
+										}
+									}, _loop, _this2);
+								});
+								_iterator2 = sourceData[Symbol.iterator]();
+
+							case 10:
+								if (_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done) {
+									_context4.next = 15;
+									break;
+								}
+
+								return _context4.delegateYield(_loop(), 't0', 12);
+
+							case 12:
+								_iteratorNormalCompletion2 = true;
+								_context4.next = 10;
+								break;
+
+							case 15:
+								_context4.next = 21;
+								break;
+
+							case 17:
+								_context4.prev = 17;
+								_context4.t1 = _context4['catch'](7);
+								_didIteratorError2 = true;
+								_iteratorError2 = _context4.t1;
+
+							case 21:
+								_context4.prev = 21;
+								_context4.prev = 22;
+
+								if (!_iteratorNormalCompletion2 && _iterator2.return) {
+									_iterator2.return();
+								}
+
+							case 24:
+								_context4.prev = 24;
+
+								if (!_didIteratorError2) {
+									_context4.next = 27;
+									break;
+								}
+
+								throw _iteratorError2;
+
+							case 27:
+								return _context4.finish(24);
+
+							case 28:
+								return _context4.finish(21);
+
+							case 29:
+								return _context4.abrupt('return', this.query(queryName, queryInput));
+
+							case 30:
+							case 'end':
+								return _context4.stop();
+						}
+					}
+				}, _callee3, this, [[7, 17, 21, 29], [22,, 24, 28]]);
+			}));
+
+			function mutate(_x4, _x5, _x6, _x7, _x8) {
+				return _ref3.apply(this, arguments);
 			}
 
-			return document;
-		}
+			return mutate;
+		}()
+
+		/**
+   * Delete a document
+   * 
+   * Returns an array of objects with properties matching the name
+   * of the source from which records were deleted, and the deleted
+   * source records.
+   * 
+   * @param {any} queryInput 
+   * @param {String} queryName 
+   * @returns {Array}
+   * 
+   * @memberOf Model
+   */
+
 	}, {
-		key: 'mutation',
-		value: function mutation(name, _mutation) {
-			this.mutation[name] = _mutation;
+		key: 'del',
+		value: function () {
+			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(queryInput, queryName) {
+				var _this3 = this;
 
-			return this;
-		}
-	}, {
-		key: 'asField',
-		value: function asField(many) {
-			var _this = this;
+				var query, inputData, result, _iteratorNormalCompletion3, _didIteratorError3, _iteratorError3, _loop2, _iterator3, _step3;
 
-			return {
-				select: function select(val) {
-					return val;
-				},
-				get: function get(doc) {
-					return doc;
-				},
-				schema: {
-					update: function () {
-						var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(select, data) {
-							return regeneratorRuntime.wrap(function _callee3$(_context3) {
-								while (1) {
-									switch (_context3.prev = _context3.next) {
-										case 0:
-											_context3.next = 2;
-											return data.commit();
+				return regeneratorRuntime.wrap(function _callee4$(_context6) {
+					while (1) {
+						switch (_context6.prev = _context6.next) {
+							case 0:
+								query = this._getQuery(queryName || 'default');
+								inputData = query.inputs.toSource(queryInput);
+								result = [];
+								_iteratorNormalCompletion3 = true;
+								_didIteratorError3 = false;
+								_iteratorError3 = undefined;
+								_context6.prev = 6;
+								_loop2 = regeneratorRuntime.mark(function _loop2() {
+									var name, source, population, deleted;
+									return regeneratorRuntime.wrap(function _loop2$(_context5) {
+										while (1) {
+											switch (_context5.prev = _context5.next) {
+												case 0:
+													name = _step3.value;
+													source = _this3._getSource(name);
+													population = query.populations.find(function (pop) {
+														return pop.source === name;
+													});
+													_context5.next = 5;
+													return source.schema.del(population.select(inputData));
 
-										case 2:
-											return _context3.abrupt('return', _context3.sent);
+												case 5:
+													deleted = _context5.sent;
 
-										case 3:
-										case 'end':
-											return _context3.stop();
-									}
-								}
-							}, _callee3, _this);
-						}));
 
-						return function update(_x3, _x4) {
-							return _ref3.apply(this, arguments);
-						};
-					}(),
-					getReferenceDocument: function () {
-						var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(select) {
-							return regeneratorRuntime.wrap(function _callee4$(_context4) {
-								while (1) {
-									switch (_context4.prev = _context4.next) {
-										case 0:
-											if (!many) {
-												_context4.next = 6;
-												break;
+													result.push({ source: name, deleted: deleted });
+
+												case 7:
+												case 'end':
+													return _context5.stop();
 											}
+										}
+									}, _loop2, _this3);
+								});
+								_iterator3 = this.boundSources[Symbol.iterator]();
 
-											_context4.next = 3;
-											return _this.getAll(select);
-
-										case 3:
-											_context4.t0 = _context4.sent;
-											_context4.next = 9;
-											break;
-
-										case 6:
-											_context4.next = 8;
-											return _this.get(select);
-
-										case 8:
-											_context4.t0 = _context4.sent;
-
-										case 9:
-											return _context4.abrupt('return', _context4.t0);
-
-										case 10:
-										case 'end':
-											return _context4.stop();
-									}
+							case 9:
+								if (_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done) {
+									_context6.next = 14;
+									break;
 								}
-							}, _callee4, _this);
-						}));
 
-						return function getReferenceDocument(_x5) {
-							return _ref4.apply(this, arguments);
-						};
-					}()
-				}
-			};
+								return _context6.delegateYield(_loop2(), 't0', 11);
+
+							case 11:
+								_iteratorNormalCompletion3 = true;
+								_context6.next = 9;
+								break;
+
+							case 14:
+								_context6.next = 20;
+								break;
+
+							case 16:
+								_context6.prev = 16;
+								_context6.t1 = _context6['catch'](6);
+								_didIteratorError3 = true;
+								_iteratorError3 = _context6.t1;
+
+							case 20:
+								_context6.prev = 20;
+								_context6.prev = 21;
+
+								if (!_iteratorNormalCompletion3 && _iterator3.return) {
+									_iterator3.return();
+								}
+
+							case 23:
+								_context6.prev = 23;
+
+								if (!_didIteratorError3) {
+									_context6.next = 26;
+									break;
+								}
+
+								throw _iteratorError3;
+
+							case 26:
+								return _context6.finish(23);
+
+							case 27:
+								return _context6.finish(20);
+
+							case 28:
+								return _context6.abrupt('return', result);
+
+							case 29:
+							case 'end':
+								return _context6.stop();
+						}
+					}
+				}, _callee4, this, [[6, 16, 20, 28], [21,, 23, 27]]);
+			}));
+
+			function del(_x9, _x10) {
+				return _ref4.apply(this, arguments);
+			}
+
+			return del;
+		}()
+
+		/**
+   * Create a new model document
+   * 
+   * Execute each of the initializers and pass data through the default
+   * query.
+   * 
+   * @param {any} inputData 
+   * @returns {Document||Document[]}
+   * 
+   * @memberOf Model
+   */
+
+	}, {
+		key: 'create',
+		value: function () {
+			var _ref5 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(inputData) {
+				var _this4 = this;
+
+				var query, rawData, mappedData, _iteratorNormalCompletion4, _didIteratorError4, _iteratorError4, _loop3, _iterator4, _step4;
+
+				return regeneratorRuntime.wrap(function _callee5$(_context8) {
+					while (1) {
+						switch (_context8.prev = _context8.next) {
+							case 0:
+								query = this._getQuery('default');
+								rawData = {};
+								mappedData = void 0;
+								_iteratorNormalCompletion4 = true;
+								_didIteratorError4 = false;
+								_iteratorError4 = undefined;
+								_context8.prev = 6;
+								_loop3 = regeneratorRuntime.mark(function _loop3() {
+									var item, source, initializer, sourceData, select;
+									return regeneratorRuntime.wrap(function _loop3$(_context7) {
+										while (1) {
+											switch (_context7.prev = _context7.next) {
+												case 0:
+													item = _step4.value;
+													source = _this4._getSource(item.source);
+													initializer = _this4.initializers.find(function (i) {
+														return i.source === item.source;
+													});
+													sourceData = void 0;
+
+													if (!initializer) {
+														_context7.next = 10;
+														break;
+													}
+
+													_context7.next = 7;
+													return _this4._createFromSchema(source.schema, initializer.init(inputData, rawData), source.many);
+
+												case 7:
+													sourceData = _context7.sent;
+													_context7.next = 14;
+													break;
+
+												case 10:
+													select = item.select(rawData);
+													_context7.next = 13;
+													return _this4._readFromSchema(source.schema, select, source.many);
+
+												case 13:
+													sourceData = _context7.sent;
+
+												case 14:
+
+													rawData = _extends({}, rawData, _defineProperty({}, source.name, sourceData));
+
+												case 15:
+												case 'end':
+													return _context7.stop();
+											}
+										}
+									}, _loop3, _this4);
+								});
+								_iterator4 = query.populations[Symbol.iterator]();
+
+							case 9:
+								if (_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done) {
+									_context8.next = 14;
+									break;
+								}
+
+								return _context8.delegateYield(_loop3(), 't0', 11);
+
+							case 11:
+								_iteratorNormalCompletion4 = true;
+								_context8.next = 9;
+								break;
+
+							case 14:
+								_context8.next = 20;
+								break;
+
+							case 16:
+								_context8.prev = 16;
+								_context8.t1 = _context8['catch'](6);
+								_didIteratorError4 = true;
+								_iteratorError4 = _context8.t1;
+
+							case 20:
+								_context8.prev = 20;
+								_context8.prev = 21;
+
+								if (!_iteratorNormalCompletion4 && _iterator4.return) {
+									_iterator4.return();
+								}
+
+							case 23:
+								_context8.prev = 23;
+
+								if (!_didIteratorError4) {
+									_context8.next = 26;
+									break;
+								}
+
+								throw _iteratorError4;
+
+							case 26:
+								return _context8.finish(23);
+
+							case 27:
+								return _context8.finish(20);
+
+							case 28:
+
+								mappedData = this.dataMap(rawData);
+
+								return _context8.abrupt('return', new Document(this, mappedData, query.inputs.fromSource(rawData), rawData));
+
+							case 30:
+							case 'end':
+								return _context8.stop();
+						}
+					}
+				}, _callee5, this, [[6, 16, 20, 28], [21,, 23, 27]]);
+			}));
+
+			function create(_x11) {
+				return _ref5.apply(this, arguments);
+			}
+
+			return create;
+		}()
+	}, {
+		key: '_readFromSchema',
+		value: function _readFromSchema(schema, select, many) {
+			if (Array.isArray(select)) {
+				var promises = select.map(function (item) {
+					return schema.read(item, !many);
+				});
+
+				return Promise.all(promises);
+			}
+
+			return schema.read(select, !many);
+		}
+	}, {
+		key: '_createFromSchema',
+		value: function _createFromSchema(schema, data, many) {
+			if (Array.isArray(data) && many) {
+				var promises = data.map(function (item) {
+					return schema.create(item);
+				});
+
+				return Promise.all(promises);
+			}
+
+			return schema.create(data);
+		}
+	}, {
+		key: '_getSource',
+		value: function _getSource(name) {
+			return this.sources.find(function (source) {
+				return source.name === name;
+			});
+		}
+	}, {
+		key: '_getMutation',
+		value: function _getMutation(name) {
+			return this.mutations.find(function (mutation) {
+				return mutation.name === name;
+			});
+		}
+	}, {
+		key: '_getQuery',
+		value: function _getQuery(name) {
+			return this.queries.find(function (query) {
+				return query.name === name;
+			}).query;
 		}
 	}], [{
 		key: 'create',
-		value: function create(fields) {
-			return new Model(fields);
+		value: function create() {
+			return new Model();
 		}
 	}]);
 
@@ -4738,6 +4570,129 @@ var Model = function () {
 }();
 
 module.exports = Model;
+
+/***/ }),
+/* 121 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Query = function () {
+	function Query(multi) {
+		_classCallCheck(this, Query);
+
+		this.multi = multi;
+		this.populations = [];
+		this.inputs = { toSource: function toSource(input) {
+				return input;
+			} };
+		this.dataMap = function (data) {
+			return data;
+		};
+	}
+
+	/**
+  * Create a new Query
+  * 
+  * Pass `true` if the query should return multiple
+  * documents
+  * 
+  * @static
+  * @param {Boolean} multi 
+  * @returns {Query}
+  * 
+  * @memberOf Query
+  */
+
+
+	_createClass(Query, [{
+		key: "input",
+
+
+		/**
+   * Set the input maps.
+   * 
+   * `toSource` should map the input data to the initial
+   * raw document data, to be used during population.
+   * `fromSource` should map the raw document data to an
+   * initial search input used in `toSource`.
+   * 
+   * **Example*
+   * 
+   * ```javascript
+   * .input(
+   * 		id => ({ post: { id }}),
+   * 		({ post }) => post.id
+   * )
+   * ```
+   * 
+   * @param {Function} toSource 
+   * @param {Function} fromSource 
+   * @returns {Query}
+   * 
+   * @memberOf Query
+   */
+		value: function input(toSource, fromSource) {
+			this.inputs = { toSource: toSource, fromSource: fromSource };
+			return this;
+		}
+
+		/**
+   * Add a source population
+   * 
+   * `select` is a function which is passed the currently
+   * available raw document data. It should return a query
+   * suitable for the data store.
+   * 
+   * @param {String} source 
+   * @param {Function} select 
+   * @returns {Query}
+   * 
+   * @memberOf Query
+   */
+
+	}, {
+		key: "populate",
+		value: function populate(source, select) {
+			this.populations.push({ source: source, select: select });
+			return this;
+		}
+
+		/**
+   * Set the query result map
+   * 
+   * This is a function that, when `multi` is true, should
+   * transform the raw data into an array of objects suitable
+   * for the Model `map`.
+   * 
+   * @param {Function} fn 
+   * @returns {Query}
+   * 
+   * @memberOf Query
+   */
+
+	}, {
+		key: "map",
+		value: function map(fn) {
+			this.dataMap = fn;
+			return this;
+		}
+	}], [{
+		key: "create",
+		value: function create(multi) {
+			return new Query(multi);
+		}
+	}]);
+
+	return Query;
+}();
+
+module.exports = Query;
 
 /***/ }),
 /* 122 */
@@ -4849,34 +4804,20 @@ var Schema = function () {
 			return update;
 		}()
 	}, {
-		key: "getReferenceDocument",
+		key: "del",
 		value: function () {
-			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(select, many) {
-				var refDoc;
+			var _ref4 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4(selector) {
 				return regeneratorRuntime.wrap(function _callee4$(_context4) {
 					while (1) {
 						switch (_context4.prev = _context4.next) {
 							case 0:
-								refDoc = this._referenceDocuments.get(JSON.stringify(select));
+								_context4.next = 2;
+								return this.store.del(this.source, selector);
 
-								if (refDoc) {
-									_context4.next = 6;
-									break;
-								}
+							case 2:
+								return _context4.abrupt("return", _context4.sent);
 
-								_context4.next = 4;
-								return this.read(select, !many);
-
-							case 4:
-								refDoc = _context4.sent;
-
-
-								this._referenceDocuments.set(JSON.stringify(select), refDoc);
-
-							case 6:
-								return _context4.abrupt("return", refDoc);
-
-							case 7:
+							case 3:
 							case "end":
 								return _context4.stop();
 						}
@@ -4884,8 +4825,50 @@ var Schema = function () {
 				}, _callee4, this);
 			}));
 
-			function getReferenceDocument(_x6, _x7) {
+			function del(_x6) {
 				return _ref4.apply(this, arguments);
+			}
+
+			return del;
+		}()
+	}, {
+		key: "getReferenceDocument",
+		value: function () {
+			var _ref5 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(select, many) {
+				var refDoc;
+				return regeneratorRuntime.wrap(function _callee5$(_context5) {
+					while (1) {
+						switch (_context5.prev = _context5.next) {
+							case 0:
+								refDoc = this._referenceDocuments.get(JSON.stringify(select));
+
+								if (refDoc) {
+									_context5.next = 6;
+									break;
+								}
+
+								_context5.next = 4;
+								return this.read(select, !many);
+
+							case 4:
+								refDoc = _context5.sent;
+
+
+								this._referenceDocuments.set(JSON.stringify(select), refDoc);
+
+							case 6:
+								return _context5.abrupt("return", refDoc);
+
+							case 7:
+							case "end":
+								return _context5.stop();
+						}
+					}
+				}, _callee5, this);
+			}));
+
+			function getReferenceDocument(_x7, _x8) {
+				return _ref5.apply(this, arguments);
 			}
 
 			return getReferenceDocument;
@@ -11930,6 +11913,522 @@ process.umask = function() { return 0; };
 
 /***/ }),
 /* 310 */
+/***/ (function(module, exports) {
+
+/*
+ * Sift 3.x
+ *
+ * Copryright 2015, Craig Condon
+ * Licensed under MIT
+ *
+ * Filter JavaScript objects with mongodb queries
+ */
+
+(function() {
+
+  'use strict';
+
+  /**
+   */
+
+  function isFunction(value) {
+    return typeof value === 'function';
+  }
+
+  /**
+   */
+
+  function isArray(value) {
+    return Object.prototype.toString.call(value) === '[object Array]';
+  }
+
+  /**
+   */
+
+  function comparable(value) {
+    if (value instanceof Date) {
+      return value.getTime();
+    } else if (value instanceof Array) {
+      return value.map(comparable);
+    } else {
+      return value;
+    }
+  }
+
+  function get(obj, key) {
+    if (obj.get) return obj.get(key);
+    return obj[key];
+  }
+
+  /**
+   */
+
+  function or(validator) {
+    return function(a, b) {
+      if (!isArray(b) || !b.length) return validator(a, b);
+      for (var i = 0, n = b.length; i < n; i++) if (validator(a, get(b,i))) return true;
+      return false;
+    }
+  }
+
+  /**
+   */
+
+  function and(validator) {
+    return function(a, b) {
+      if (!isArray(b) || !b.length) return validator(a, b);
+      for (var i = 0, n = b.length; i < n; i++) if (!validator(a, get(b, i))) return false;
+      return true;
+    };
+  }
+
+  function validate(validator, b) {
+    return validator.v(validator.a, b);
+  }
+
+  var operator = {
+
+    /**
+     */
+
+    $eq: or(function(a, b) {
+      return a(b);
+    }),
+
+    /**
+     */
+
+    $ne: and(function(a, b) {
+      return !a(b);
+    }),
+
+    /**
+     */
+
+    $or: function(a, b) {
+      for (var i = 0, n = a.length; i < n; i++) if (validate(get(a, i), b)) return true;
+      return false;
+    },
+
+    /**
+     */
+
+    $gt: or(function(a, b) {
+      return sift.compare(comparable(b), a) > 0;
+    }),
+
+    /**
+     */
+
+    $gte: or(function(a, b) {
+      return sift.compare(comparable(b), a) >= 0;
+    }),
+
+    /**
+     */
+
+    $lt: or(function(a, b) {
+      return sift.compare(comparable(b), a) < 0;
+    }),
+
+    /**
+     */
+
+    $lte: or(function(a, b) {
+      return sift.compare(comparable(b), a) <= 0;
+    }),
+
+    /**
+     */
+
+    $mod: or(function(a, b) {
+      return b % a[0] == a[1];
+    }),
+
+    /**
+     */
+
+    $in: function(a, b) {
+
+      if (b instanceof Array) {
+        for (var i = b.length; i--;) {
+          if (~a.indexOf(comparable(get(b, i)))) return true;
+        }
+      } else {
+        return !!~a.indexOf(comparable(b));
+      }
+
+      return false;
+    },
+
+    /**
+     */
+
+    $nin: function(a, b) {
+      return !operator.$in(a, b);
+    },
+
+    /**
+     */
+
+    $not: function(a, b) {
+      return !validate(a, b);
+    },
+
+    /**
+     */
+
+    $type: function(a, b) {
+      return b != void 0 ? b instanceof a || b.constructor == a : false;
+     },
+
+    /**
+     */
+
+    $all: function(a, b) {
+      return operator.$and(a, b);
+    },
+
+    /**
+     */
+
+    $size: function(a, b) {
+      return b ? a === b.length : false;
+    },
+
+    /**
+     */
+
+    $nor: function(a, b) {
+      // todo - this suffice? return !operator.$in(a)
+      for (var i = 0, n = a.length; i < n; i++) if (validate(get(a, i), b)) return false;
+      return true;
+    },
+
+    /**
+     */
+
+    $and: function(a, b) {
+      if (!b) b = [];
+      for (var i = 0, n = a.length; i < n; i++) if (!validate(get(a, i), b)) return false;
+      return true;
+    },
+
+    /**
+     */
+
+    $regex: or(function(a, b) {
+      return typeof b === 'string' && a.test(b);
+    }),
+
+    /**
+     */
+
+    $where: function(a, b) {
+      return a.call(b, b);
+    },
+
+    /**
+     */
+
+    $elemMatch: function(a, b) {
+      if (isArray(b)) return !!~search(b, a);
+      return validate(a, b);
+    },
+
+    /**
+     */
+
+    $exists: function(a, b) {
+      return (b != void 0) === a;
+    }
+  };
+
+  /**
+   */
+
+  var prepare = {
+
+    /**
+     */
+
+    $eq: function(a) {
+
+      if (a instanceof RegExp) {
+        return function(b) {
+          return typeof b === 'string' && a.test(b);
+        };
+      } else if (a instanceof Function) {
+        return a;
+      } else if (isArray(a) && !a.length) {
+        // Special case of a == []
+        return function(b) {
+          return (isArray(b) && !b.length);
+        };
+      } else if (a === null){
+        return function(b){
+          //will match both null and undefined
+          return b == null;
+        }
+      }
+
+      return function(b) {
+        return sift.compare(comparable(b), a) === 0;
+      };
+    },
+
+    /**
+     */
+
+    $ne: function(a) {
+      return prepare.$eq(a);
+    },
+
+    /**
+     */
+
+    $and: function(a) {
+      return a.map(parse);
+    },
+
+    /**
+     */
+
+    $all: function(a) {
+      return prepare.$and(a);
+    },
+
+    /**
+     */
+
+    $or: function(a) {
+      return a.map(parse);
+    },
+
+    /**
+     */
+
+    $nor: function(a) {
+      return a.map(parse);
+    },
+
+    /**
+     */
+
+    $not: function(a) {
+      return parse(a);
+    },
+
+    /**
+     */
+
+    $regex: function(a, query) {
+      return new RegExp(a, query.$options);
+    },
+
+    /**
+     */
+
+    $where: function(a) {
+      return typeof a === 'string' ? new Function('obj', 'return ' + a) : a;
+    },
+
+    /**
+     */
+
+    $elemMatch: function(a) {
+      return parse(a);
+    },
+
+    /**
+     */
+
+    $exists: function(a) {
+      return !!a;
+    }
+  };
+
+  /**
+   */
+
+  function search(array, validator) {
+
+    for (var i = 0; i < array.length; i++) {
+      if (validate(validator, get(array, i))) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  /**
+   */
+
+  function createValidator(a, validate) {
+    return { a: a, v: validate };
+  }
+
+  /**
+   */
+
+  function nestedValidator(a, b) {
+    var values  = [];
+    findValues(b, a.k, 0, values);
+
+    if (values.length === 1) {
+      return validate(a.nv, values[0]);
+    }
+
+    return !!~search(values, a.nv);
+  }
+
+  /**
+   */
+
+  function findValues(current, keypath, index, values) {
+
+    if (index === keypath.length || current == void 0) {
+      values.push(current);
+      return;
+    }
+
+    var k = get(keypath, index);
+
+    // ensure that if current is an array, that the current key
+    // is NOT an array index. This sort of thing needs to work:
+    // sift({'foo.0':42}, [{foo: [42]}]);
+    if (isArray(current) && isNaN(Number(k))) {
+      for (var i = 0, n = current.length; i < n; i++) {
+        findValues(get(current, i), keypath, index, values);
+      }
+    } else {
+      findValues(get(current, k), keypath, index + 1, values);
+    }
+  }
+
+  /**
+   */
+
+  function createNestedValidator(keypath, a) {
+    return { a: { k: keypath, nv: a }, v: nestedValidator };
+  }
+
+  /**
+   * flatten the query
+   */
+
+  function parse(query) {
+    query = comparable(query);
+
+    if (!query || (query.constructor.toString() !== 'Object' &&
+        query.constructor.toString().replace(/\n/g,'').replace(/ /g, '') !== 'functionObject(){[nativecode]}')) { // cross browser support
+      query = { $eq: query };
+    }
+
+    var validators = [];
+
+    for (var key in query) {
+      var a = query[key];
+
+      if (key === '$options') continue;
+
+      if (operator[key]) {
+        if (prepare[key]) a = prepare[key](a, query);
+        validators.push(createValidator(comparable(a), operator[key]));
+      } else {
+
+        if (key.charCodeAt(0) === 36) {
+          throw new Error('Unknown operation ' + key);
+        }
+
+        validators.push(createNestedValidator(key.split('.'), parse(a)));
+      }
+    }
+
+    return validators.length === 1 ? validators[0] : createValidator(validators, operator.$and);
+  }
+
+  /**
+   */
+
+  function createRootValidator(query, getter) {
+    var validator = parse(query);
+    if (getter) {
+      validator = {
+        a: validator,
+        v: function(a, b) {
+          return validate(a, getter(b));
+        }
+      };
+    }
+    return validator;
+  }
+
+  /**
+   */
+
+  function sift(query, array, getter) {
+
+    if (isFunction(array)) {
+      getter = array;
+      array  = void 0;
+    }
+
+    var validator = createRootValidator(query, getter);
+
+    function filter(b) {
+      return validate(validator, b);
+    }
+
+    if (array) {
+      return array.filter(filter);
+    }
+
+    return filter;
+  }
+
+  /**
+   */
+
+  sift.use = function(plugin) {
+    if (isFunction(plugin)) return plugin(sift);
+    for (var key in plugin) {
+      if (key.charCodeAt(0) === 36) operator[key] = plugin[key];
+    }
+  };
+
+  /**
+   */
+
+  sift.indexOf = function(query, array, getter) {
+    return search(array, createRootValidator(query, getter));
+  };
+
+  /**
+   */
+
+  sift.compare = function(a, b) {
+    if(a===b) return 0;
+    if(typeof a === typeof b) {
+      if (a > b) return 1;
+      if (a < b) return -1;
+    }
+  };
+
+  /* istanbul ignore next */
+  if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = sift;
+  }
+
+  if (typeof window !== 'undefined') {
+    window.sift = sift;
+  }
+})();
+
+
+/***/ }),
+/* 311 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(Buffer) {// Regular expression used for basic parsing of the uuid.
@@ -12033,11 +12532,11 @@ var extractVersion = module.exports.version = function (uuid) {
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(124).Buffer))
 
 /***/ }),
-/* 311 */
+/* 312 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var v1 = __webpack_require__(312);
-var v4 = __webpack_require__(313);
+var v1 = __webpack_require__(313);
+var v4 = __webpack_require__(314);
 
 var uuid = v4;
 uuid.v1 = v1;
@@ -12047,7 +12546,7 @@ module.exports = uuid;
 
 
 /***/ }),
-/* 312 */
+/* 313 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Unique ID creation requires a high quality random # generator.  We feature
@@ -12156,7 +12655,7 @@ module.exports = v1;
 
 
 /***/ }),
-/* 313 */
+/* 314 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var rng = __webpack_require__(116);
@@ -12191,7 +12690,7 @@ module.exports = v4;
 
 
 /***/ }),
-/* 314 */
+/* 315 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(118);
