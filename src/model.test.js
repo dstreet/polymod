@@ -30,11 +30,24 @@ describe('single source', async () => {
 		const Post = Model
 			.create()
 			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
 			.addQuery('default',
 				Query
 					.create()
@@ -51,7 +64,78 @@ describe('single source', async () => {
 		})
 	})
 
-	test('mutate()', async () => {
+	test('mutate() - unnamed', async () => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				},
+				{
+					id: 2,
+					title: 'Post 2',
+					content: 'This is the second post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content,
+					mutation: {
+						method: [{ source: 'post', data: content => ({ content }) }]
+					}
+				},
+				date: {
+					type: { created: Date },
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		let doc = await Post.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			title: 'Post 1',
+			content: 'This is the first post',
+			date: { created: now }
+		})
+
+		doc = await doc.mutate({
+			title: 'Updated Title',
+			content: 'This is the first post'
+		})
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			title: 'Updated Title',
+			content: 'This is the first post',
+			date: { created: now }
+		})
+	})
+
+	test('mutate() - named', async () => {
 		const storage = new MemStore({
 			posts: [
 				{
@@ -78,12 +162,12 @@ describe('single source', async () => {
 				content: post.content,
 				date: { created: post.dateCreated }
 			}))
-			.addMutation('updateTitle', title => ([
-				{ source: 'post', data: { title } }
-			]))
-			.addMutation('updateAll', data => ([
-				{ source: 'post', data: { title: data.title, content: data.content, dateCreated: data.date.created } }
-			]))
+			.addMutation('updateTitle', [
+				{ source: 'post', data: title => ({ title }) }
+			])
+			.addMutation('updateAll', [
+				{ source: 'post', data: data => ({ title: data.title, content: data.content, dateCreated: data.date.created }) }
+			])
 			.addQuery('default',
 				Query
 					.create()
@@ -200,25 +284,40 @@ describe('single source', async () => {
 		const Post = Model
 			.create()
 			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content,
+					mutation: {
+						method: { source: 'post', data: content => ({ content }) }
+					}
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					}),
+					mutation: {
+						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
+					},
+					default: () => ({ created: now })
+				}
+			})
 			.addQuery('default',
 				Query
 					.create()
-					.input(
-						id => ({ post: { id }}),
-						({ post }) => post.id
-					)
+					.input(id => ({ post: { id }}), ({ post }) => post.id)
 					.populate('post', ({ post }) => ({ id: post.id }))
 			)
-			.addInitializer('post', data => ({
-				title: data.title,
-				content: data.content,
-				dateCreated: data.dateCreated || now
-			}))
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -227,7 +326,7 @@ describe('single source', async () => {
 			content: 'This is the first post',
 			date: { created: now }
 		})
-
+		
 		doc = await Post.create({
 			title: 'New Post',
 			content: 'New post content'
@@ -278,6 +377,65 @@ describe('single source', async () => {
 			title: 'Post 1',
 			content: 'This is the first post',
 			date: { created: now }
+		})
+	})
+
+	test('describe()', async () => {
+		const storage = new MemStore()
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					meta: {
+						label: 'Content',
+						description: 'Post content'
+					},
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		expect(Post.describe()).toEqual({
+			title: {
+				type: String,
+				mutable: true
+			},
+			content: {
+				type: String,
+				meta: {
+					label: 'Content',
+					description: 'Post content'
+				},
+				mutable: false
+			},
+			date: {
+				type: { created: Date },
+				mutable: false
+			}
 		})
 	})
 })
@@ -395,15 +553,38 @@ describe('multiple sources', async () => {
 			.create()
 			.addSource('post', PostsSchema)
 			.addSource('author', UsersSchema)
-			.map(({ post, author }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: { type: Date }
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				},
 				author: {
-					username: author.username,
-					name: author.name
+					type: {
+						username: String,
+						name: { first: String, last: String }
+					},
+					data: ({ author }) => ({
+						username: author.username,
+						name: author.name
+					}),
+					mutation: {
+						type: Number,
+						method: { source: 'post', data: id => ({ author: id }) }
+					}
 				}
-			}))
+			})
 			.addQuery('default',
 				Query
 					.create()
@@ -411,9 +592,6 @@ describe('multiple sources', async () => {
 					.populate('post', ({ post }) => ({ id: post.id }))
 					.populate('author', ({ post }) => ({ id: post.author }))
 			)
-			.addMutation('updateAuthor', id => ([
-				{ source: 'post', data: { author: id } }
-			]))
 			
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -427,7 +605,9 @@ describe('multiple sources', async () => {
 			}
 		})
 
-		doc = await doc.mutate('updateAuthor', 2)
+		doc = await doc.mutate({
+			author: 2
+		})
 		expect(doc instanceof Document).toBeTruthy()
 		expect(doc.data).toEqual({
 			title: 'Post 1',
@@ -567,15 +747,48 @@ describe('multiple sources', async () => {
 			.create()
 			.addSource('post', PostsSchema)
 			.addSource('author', UsersSchema)
-			.map(({ post, author }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content,
+					mutation: {
+						method: { source: 'post', data: content => ({ content }) }
+					}
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					}),
+					mutation: {
+						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
+					},
+					default: () => ({ created: now })
+				},
 				author: {
-					username: author.username,
-					name: author.name
+					type: {
+						username: String,
+						name: { first: String, last: String }
+					},
+					data: ({ author }) => ({
+						username: author.username,
+						name: author.name
+					}),
+					mutation: {
+						type: Number,
+						method: { source: 'post', data: id => ({ author: id }) }
+					}
 				}
-			}))
+			})
 			.addQuery('default',
 				Query
 					.create()
@@ -586,12 +799,6 @@ describe('multiple sources', async () => {
 					.populate('post', ({ post }) => ({ id: post.id }))
 					.populate('author', ({ post }) => ({ id: post.author }))
 			)
-			.addInitializer('post', data => ({
-				title: data.title,
-				content: data.content,
-				dateCreated: data.dateCreated || now,
-				author: data.author
-			}))
 			
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -792,15 +999,38 @@ describe('array source', async () => {
 
 		const Post = Model
 			.create()
-			.addSource('post', PostsSchema,)
+			.addSource('post', PostsSchema)
 			.addSource('tagLinks', [PostTagsSchema])
 			.addSource('tags', TagsSchema)
-			.map(({ post, tags }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				tags: tags.map(tag => tag.title)
-			}))
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				},
+				tags: {
+					type: [String],
+					data: ({ tags }) => tags.map(tag => tag.title),
+					mutation: {
+						type: [Number],
+						method: [
+							{ source: 'tagLinks', data: (tags, { post }) => ({ post: post.id }), operation: 'delete' },
+							{ source: 'tagLinks', data: (tags, { post }) => tags.map(tag => ({ post: post.id, tag })), operation: 'create' }
+						]
+					}
+				}
+			})
 			.addQuery('default',
 				Query
 					.create()
@@ -809,9 +1039,9 @@ describe('array source', async () => {
 					.populate('tagLinks', ({ post }) => ({ post: post.id }))
 					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
 			)
-			.addMutation('pushTag', (id, { post }) => ([
-				{ source: 'tagLinks', data: { post: post.id, tag: id }, operation: 'create' }
-			]))
+			.addMutation('pushTag', [
+				{ source: 'tagLinks', data: (id, { post }) => ({ post: post.id, tag: id }), operation: 'create' }
+			])
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -829,6 +1059,17 @@ describe('array source', async () => {
 			content: 'This is the first post',
 			date: { created: now },
 			tags: ['Sevr', 'MongoDB', 'React']
+		})
+
+		doc = await doc.mutate({
+			tags: [1, 2]
+		})
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			title: 'Post 1',
+			content: 'This is the first post',
+			date: { created: now },
+			tags: ['Sevr', 'MongoDB']
 		})
 	})
 
@@ -937,12 +1178,45 @@ describe('array source', async () => {
 			.addSource('post', PostsSchema,)
 			.addSource('tagLinks', [PostTagsSchema])
 			.addSource('tags', TagsSchema)
-			.map(({ post, tags }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				tags: tags.map(tag => tag.title)
-			}))
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content,
+					mutation: {
+						method: { source: 'post', data: content => ({ content }) }
+					}
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					}),
+					mutation: {
+						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
+					},
+					default: () => ({ created: now })
+				},
+				tags: {
+					type: [String],
+					data: ({ tags }) => tags.map(tag => tag.title),
+					mutation: {
+						type: [Number],
+						method: [
+							{ source: 'tagLinks', data: (tags, { post }) => ({ post: post.id }), operation: 'delete' },
+							{ source: 'tagLinks', data: (tags, { post }) => tags.map(tag => ({ post: post.id, tag })), operation: 'create' }
+						]
+					}
+				}
+			})
 			.addQuery('default',
 				Query
 					.create()
@@ -954,12 +1228,6 @@ describe('array source', async () => {
 					.populate('tagLinks', ({ post }) => ({ post: post.id }))
 					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
 			)
-			.addInitializer('post', data => ({
-				title: data.title,
-				content: data.content,
-				dateCreated: data.dateCreated || now
-			}))
-			.addInitializer('tagLinks', (data, sources) => data.tags.map(tag => ({ post: sources.post.id, tag })))
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()

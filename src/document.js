@@ -28,7 +28,11 @@ class Document {
 	 * @memberOf Document
 	 */
 	mutate(name, data) {
-		return this.model.mutate(name, this.input, this.query, data, this._rawData)
+		if (typeof name !== 'string') {
+			return this.model.mutate(this.input, this.query, name, this._rawData)
+		}
+
+		return this.model.namedMutate(name, this.input, this.query, data, this._rawData)
 	}
 
 	/**
