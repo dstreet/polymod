@@ -8,18 +8,18 @@ class MemStore {
 	}
 
 	async create(source, data) {
-		const createData = {
+		const createData = [].concat(data).map(item => ({
 			id: uuid(),
-			...data
-		}
+			...item
+		}))
 
 		if (!this._data.hasOwnProperty(source)) {
 			this._data[source] = []
 		}
+		
+		createData.forEach(item => this._data[source].push(item))
 
-		this._data[source].push(createData)
-
-		return createData
+		return Array.isArray(data) ? createData : createData[0]
 	}
 
 	async read(source, selector) {
