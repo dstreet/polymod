@@ -1,4 +1,5 @@
 const Document = require('./document')
+const validator = require('./validator')
 
 class Model {
 	constructor() {
@@ -8,6 +9,7 @@ class Model {
 		this.queries = []
 		this.initializers = []
 		this.defaults = {}
+		this.mutationSchema = {}
 		this.dataMap = data => data
 	}
 
@@ -21,6 +23,10 @@ class Model {
 	 */
 	static create() {
 		return new Model()
+	}
+
+	get lastError() {
+		return this._lastError ? { ...this._lastError } : undefined
 	}
 
 	/**
@@ -72,6 +78,21 @@ class Model {
 
 			return acc
 		}, {})
+
+		this.mutationSchema = {
+			type: 'object',
+			properties: Object.keys(dataDescription).reduce((acc, key) => {
+				let type
+
+				if ('mutation' in dataDescription[key] && 'type' in dataDescription[key].mutation) {
+					type = validator.parseType(dataDescription[key].mutation.type, dataDescription[key].required)
+				} else {
+					type = validator.parseType(dataDescription[key].type, dataDescription[key].required)
+				}
+
+				return { ...acc, [key]: type }
+			}, {})
+		}
 
 		return this
 	}
@@ -295,7 +316,15 @@ class Model {
 	async mutate(queryInput, queryName, data, docData) {
 		const query = this._getQuery(queryName || 'default')
 		const inputData = query.inputs.toSource(queryInput)
-		const mutationData = this._getMutations(Object.keys(data))
+		const dataWithDefaults = { ...this.defaults, ...data }
+		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
+
+		if (!validatorResult.valid) {
+			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
+			throw this._lastError.err
+		}
+
+		const mutationData = this._getMutations(Object.keys(dataWithDefaults))
 			// Group mutations by source and operation, and apply the data function
 			// This enables the ability to send a single query to the source schema when
 			// multiple properties are being edited.

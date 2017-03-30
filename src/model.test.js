@@ -1344,3 +1344,89 @@ describe('array source', async () => {
 		})
 	})
 })
+
+describe('validation', async () => {
+	test('mutate()', async() => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				},
+				{
+					id: 2,
+					title: 'Post 2',
+					content: 'This is the second post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.describe({
+				title: {
+					type: String,
+					required: true,
+					data: ({ post }) => post.title,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content,
+					mutation: {
+						method: { source: 'post', data: title => ({ title }) }
+					}
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					}),
+					mutation: {
+						method: { source: 'post', data: date => ({ dateCreated: date.create }) }
+					}
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		expect.assertions(8)
+		expect(Post.lastError).toBeUndefined()
+
+		let doc = await Post.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			title: 'Post 1',
+			content: 'This is the first post',
+			date: { created: now }
+		})
+
+		try {
+			await doc.mutate({ title: 1337 })
+		} catch (err) {
+			expect(err.message).toBe('Invalid')
+			expect(Post.lastError).toHaveProperty('err')
+			expect(Post.lastError).toHaveProperty('data')
+		}
+
+		try {
+			await doc.mutate({ content: '' })
+		} catch (err) {
+			expect(err.message).toBe('Invalid')
+			expect(Post.lastError.data[0]).toHaveProperty('reason', 'optional')
+		}
+	})
+})
