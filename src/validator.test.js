@@ -3,18 +3,20 @@ const validator = require('./validator')
 
 describe('parseType()', () => {
 	test('Array - all elements the same', () => {
-		expect(validator.parseType([String])).toEqual({
+		expect(validator.parseType([String], true)).toEqual({
 			type: 'array',
-			items: { type: 'string' }
+			optional: false,
+			items: { type: 'string', optional: false }
 		})
 	})
 
 	test('Array - element positions', () => {
 		expect(validator.parseType([String, Number])).toEqual({
 			type: 'array',
+			optional: true,
 			items: [
-				{ type: 'string' },
-				{ type: 'number' }
+				{ type: 'string', optional: true },
+				{ type: 'number', optional: true }
 			]
 		})
 	})
@@ -22,9 +24,10 @@ describe('parseType()', () => {
 	test('Object - simplified format', () => {
 		expect(validator.parseType({ foo: String, bar: Number })).toEqual({
 			type: 'object',
+			optional: true,
 			properties: {
-				foo: { type: 'string' },
-				bar: { type: 'number' }
+				foo: { type: 'string', optional: true },
+				bar: { type: 'number', optional: true }
 			}
 		})
 	})
@@ -37,12 +40,14 @@ describe('parseType()', () => {
 	})
 
 	test('Array - all elements of object type', () => {
-		expect(validator.parseType([{ name: String }])).toEqual({
+		expect(validator.parseType([{ name: String }], true)).toEqual({
 			type: 'array',
+			optional: false,
 			items: {
 				type: 'object',
+				optional: false,
 				properties: {
-					name: { type: 'string' }
+					name: { type: 'string', optional: false }
 				}
 			}
 		})
