@@ -25,10 +25,6 @@ class Model {
 		return new Model()
 	}
 
-	get lastError() {
-		return this._lastError ? { ...this._lastError } : undefined
-	}
-
 	/**
 	 * Get or set the data description
 	 * 
