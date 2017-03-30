@@ -161,7 +161,7 @@ class Model {
 	addMutation(name, method, type) {
 		this.mutations[name] = {
 			methods: [].concat(method),
-			type
+			type: validator.parseType(type)
 		}
 
 		return this
@@ -381,10 +381,17 @@ class Model {
 	 */
 	async namedMutate(name, queryInput, queryName, data, docData) {
 		const query = this._getQuery(queryName || 'default')
-		const mutationMethods = this._getMutation(name).methods
+		const mutation = this._getMutation(name)
 		const inputData = query.inputs.toSource(queryInput)
 
-		for (const method of mutationMethods) {
+		const validatorResult = validator.validate(mutation.type, data)
+
+		if (!validatorResult.valid) {
+			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
+			throw this._lastError.err
+		}
+
+		for (const method of mutation.methods) {
 			const source = this._getSource(method.source)
 			const population = query.populations.find(pop => pop.source === method.source)
 			const mutatedData = method.data(data, docData)
@@ -437,7 +444,19 @@ class Model {
 	 */
 	async create(inputData) {
 		const query = this._getQuery('default')
-		const inputDataWithDefaults = { ...this.defaults, ...inputData }
+		const data = { ...this.defaults, ...inputData }
+		const inputDataWithDefaults = Object.keys(data).reduce((acc, key) => ({
+			...acc,
+			[key]: typeof data[key] === 'function' ? data[key]() : data[key]
+		}), {})
+
+		const validatorResult = validator.validate(this.mutationSchema, inputDataWithDefaults)
+
+		if (!validatorResult.valid) {
+			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
+			throw this._lastError.err
+		}
+
 		let rawData = {}
 		let mappedData
 
@@ -446,9 +465,7 @@ class Model {
 			.reduce((acc, item) => {
 				const source = item.source
 				const operation = item.operation || 'update'
-				const input = typeof inputDataWithDefaults[item.property] === 'function' ?
-					inputDataWithDefaults[item.property]() :
-					inputDataWithDefaults[item.property]
+				const input = inputDataWithDefaults[item.property]
 
 				if (operation !== 'update' && operation !== 'create') return acc
 				

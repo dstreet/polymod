@@ -2,6 +2,8 @@ const inspector = require('schema-inspector')
 
 module.exports = {
 	parseType(type, required) {
+		if (typeof type === 'undefined') return { type: 'any', optional: true }
+
 		if (Array.isArray(type)) {
 			return {
 				type: 'array',
