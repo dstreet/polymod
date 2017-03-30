@@ -123,12 +123,13 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 
-		doc = await doc.mutate({
+		let { document } = await doc.mutate({
 			title: 'Updated Title',
 			content: 'This is the first post'
 		})
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		
+		expect(document instanceof Document).toBeTruthy()
+		expect(document.data).toEqual({
 			title: 'Updated Title',
 			content: 'This is the first post',
 			date: { created: now }
@@ -183,22 +184,22 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 
-		doc = await doc.mutate('updateTitle', 'Updated Title')
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		let { document: doc1 } = await doc.mutate('updateTitle', 'Updated Title')
+		expect(doc1 instanceof Document).toBeTruthy()
+		expect(doc1.data).toEqual({
 			title: 'Updated Title',
 			content: 'This is the first post',
 			date: { created: now }
 		})
 
 		const now2 = new Date()
-		doc = await doc.mutate('updateAll', {
+		let { document: doc2 } = await doc1.mutate('updateAll', {
 			title: 'Updated Again',
 			content: 'Look at me!',
 			date: { created: now2 }
 		})
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		expect(doc2 instanceof Document).toBeTruthy()
+		expect(doc2.data).toEqual({
 			title: 'Updated Again',
 			content: 'Look at me!',
 			date: { created: now2 }
@@ -262,7 +263,7 @@ describe('single source', async () => {
 		])
 	})
 
-	test('createNew()', async () => {
+	test('create()', async () => {
 		const storage = new MemStore({
 			posts: [
 				{
@@ -327,14 +328,14 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 		
-		doc = await Post.create({
+		let { document } = await Post.create({
 			title: 'New Post',
 			content: 'New post content'
 		})
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toHaveProperty('title', 'New Post')
-		expect(doc.data).toHaveProperty('content', 'New post content')
-		expect(doc.data).toHaveProperty('date.created', now)
+		expect(document instanceof Document).toBeTruthy()
+		expect(document.data).toHaveProperty('title', 'New Post')
+		expect(document.data).toHaveProperty('content', 'New post content')
+		expect(document.data).toHaveProperty('date.created', now)
 	})
 
 	test('query()', async () => {
@@ -605,11 +606,11 @@ describe('multiple sources', async () => {
 			}
 		})
 
-		doc = await doc.mutate({
+		let { document } = await doc.mutate({
 			author: 2
 		})
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		expect(document instanceof Document).toBeTruthy()
+		expect(document.data).toEqual({
 			title: 'Post 1',
 			content: 'This is the first post',
 			date: { created: now },
@@ -706,7 +707,7 @@ describe('multiple sources', async () => {
 		])
 	})
 
-	test('createNew()', async () => {
+	test('create()', async () => {
 		const storage = new MemStore({
 			users: [
 				{
@@ -812,15 +813,15 @@ describe('multiple sources', async () => {
 			}
 		})
 
-		doc = await Post.create({
+		let { document } = await Post.create({
 			title: 'New Post',
 			content: 'New post content',
 			author: 2
 		})
-		expect(doc.data).toHaveProperty('title', 'New Post')
-		expect(doc.data).toHaveProperty('content', 'New post content')
-		expect(doc.data).toHaveProperty('date.created', now)
-		expect(doc.data).toHaveProperty('author', {
+		expect(document.data).toHaveProperty('title', 'New Post')
+		expect(document.data).toHaveProperty('content', 'New post content')
+		expect(document.data).toHaveProperty('date.created', now)
+		expect(document.data).toHaveProperty('author', {
 			username: 'twaits',
 			name: { first: 'Tom', last: 'Waits' }
 		})
@@ -1052,20 +1053,20 @@ describe('array source', async () => {
 			tags: ['Sevr', 'MongoDB']
 		})
 
-		doc = await doc.mutate('pushTag', 3)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		let { document: doc1 } = await doc.mutate('pushTag', 3)
+		expect(doc1 instanceof Document).toBeTruthy()
+		expect(doc1.data).toEqual({
 			title: 'Post 1',
 			content: 'This is the first post',
 			date: { created: now },
 			tags: ['Sevr', 'MongoDB', 'React']
 		})
 
-		doc = await doc.mutate({
+		let { document: doc2 } = await doc1.mutate({
 			tags: [1, 2]
 		})
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+		expect(doc2 instanceof Document).toBeTruthy()
+		expect(doc2.data).toEqual({
 			title: 'Post 1',
 			content: 'This is the first post',
 			date: { created: now },
@@ -1148,7 +1149,7 @@ describe('array source', async () => {
 		])
 	})
 
-	test('createNew()', async () => {
+	test('create()', async () => {
 		const storage = new MemStore({
 			posts: [
 				{
@@ -1238,17 +1239,17 @@ describe('array source', async () => {
 			tags: ['Sevr', 'MongoDB']
 		})
 
-		doc = await Post.create({
+		let { document } = await Post.create({
 			title: 'New Post',
 			content: 'New post content',
 			tags: [2, 3]
 		})
 
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toHaveProperty('title', 'New Post')
-		expect(doc.data).toHaveProperty('content', 'New post content')
-		expect(doc.data).toHaveProperty('date.created', now)
-		expect(doc.data).toHaveProperty('tags', ['MongoDB', 'React'])
+		expect(document instanceof Document).toBeTruthy()
+		expect(document.data).toHaveProperty('title', 'New Post')
+		expect(document.data).toHaveProperty('content', 'New post content')
+		expect(document.data).toHaveProperty('date.created', now)
+		expect(document.data).toHaveProperty('tags', ['MongoDB', 'React'])
 	})
 
 	test('query()', async () => {
@@ -1404,8 +1405,7 @@ describe('validation', async () => {
 					.populate('post', ({ post }) => ({ id: post.id }))
 			)
 
-		expect.assertions(8)
-		expect(Post.lastError).toBeUndefined()
+		expect.assertions(6)
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -1415,20 +1415,13 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 
-		try {
-			await doc.mutate({ title: 1337 })
-		} catch (err) {
-			expect(err.message).toBe('Invalid')
-			expect(Post.lastError).toHaveProperty('err')
-			expect(Post.lastError).toHaveProperty('data')
-		}
+		const { error: error1 } = await doc.mutate({ title: 1337 })
+		expect(error1).toHaveProperty('err')
+		expect(error1).toHaveProperty('data')
 
-		try {
-			await doc.mutate({ content: '' })
-		} catch (err) {
-			expect(err.message).toBe('Invalid')
-			expect(Post.lastError.data[0]).toHaveProperty('reason', 'optional')
-		}
+		const { error: error2 } = await doc.mutate({ content: '' })
+		expect(error2.err.message).toBe('Invalid')
+		expect(error2.data[0]).toHaveProperty('reason', 'optional')
 	})
 
 	test('mutate() - named', async() => {
@@ -1482,8 +1475,7 @@ describe('validation', async () => {
 				{ source: 'post', data: title => ({ title }) }
 			], String)
 
-		expect.assertions(6)
-		expect(Post.lastError).toBeUndefined()
+		expect.assertions(5)
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -1493,16 +1485,13 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 
-		try {
-			await doc.mutate('updateTitle', 1337)
-		} catch (err) {
-			expect(err.message).toBe('Invalid')
-			expect(Post.lastError).toHaveProperty('err')
-			expect(Post.lastError).toHaveProperty('data')
-		}
+		const { error } = await doc.mutate('updateTitle', 1337)
+		expect(error.err.message).toBe('Invalid')
+		expect(error).toHaveProperty('err')
+		expect(error).toHaveProperty('data')
 	})
 
-	test('createNew()', async () => {
+	test('create()', async () => {
 		const storage = new MemStore({
 			posts: [
 				{
@@ -1559,8 +1548,7 @@ describe('validation', async () => {
 					.populate('post', ({ post }) => ({ id: post.id }))
 			)
 
-		expect.assertions(6)
-		expect(Post.lastError).toBeUndefined()
+		expect.assertions(5)
 
 		let doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -1570,14 +1558,11 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 		
-		try {
-			await Post.create({
-				title: 1337
-			})
-		} catch (err) {
-			expect(err.message).toBe('Invalid')
-			expect(Post.lastError).toHaveProperty('err')
-			expect(Post.lastError).toHaveProperty('data')
-		}
+		const { error } = await Post.create({
+			title: 1337
+		})
+		expect(error.err.message).toBe('Invalid')
+		expect(error).toHaveProperty('err')
+		expect(error).toHaveProperty('data')
 	})
 })

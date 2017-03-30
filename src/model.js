@@ -309,7 +309,7 @@ class Model {
 	 * @param {String} queryName 
 	 * @param {Object} data 
 	 * @param {Object} docData 
-	 * @returns {Document|Document[]}
+	 * @returns {Object}
 	 * 
 	 * @memberOf Model
 	 */
@@ -320,8 +320,9 @@ class Model {
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
 
 		if (!validatorResult.valid) {
-			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
-			throw this._lastError.err
+			return {
+				error: { err: new Error('Invalid'), data: validatorResult.error }
+			}
 		}
 
 		const mutationData = this._getMutations(Object.keys(dataWithDefaults))
@@ -364,7 +365,7 @@ class Model {
 			}
 		}
 
-		return this.query(queryName, queryInput)
+		return { document: await this.query(queryName, queryInput) }
 	}
 
 	/**
@@ -375,7 +376,7 @@ class Model {
 	 * @param {String} queryName 
 	 * @param {Object} data 
 	 * @param {Object} docData 
-	 * @returns {Document|Document[]}
+	 * @returns {Object}
 	 * 
 	 * @memberOf Model
 	 */
@@ -387,8 +388,10 @@ class Model {
 		const validatorResult = validator.validate(mutation.type, data)
 
 		if (!validatorResult.valid) {
-			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
-			throw this._lastError.err
+			return {
+				document: undefined,
+				error: { err: new Error('Invalid'), data: validatorResult.error }
+			}
 		}
 
 		for (const method of mutation.methods) {
@@ -399,7 +402,7 @@ class Model {
 			await this._execMutation(source, method.operation, mutatedData, population.select(inputData))
 		}
 
-		return this.query(queryName, queryInput)
+		return { document: await this.query(queryName, queryInput) }
 	}
 
 	/**
@@ -438,7 +441,7 @@ class Model {
 	 * the default query
 	 * 
 	 * @param {any} inputData 
-	 * @returns {Document||Document[]}
+	 * @returns {Object}
 	 * 
 	 * @memberOf Model
 	 */
@@ -453,8 +456,10 @@ class Model {
 		const validatorResult = validator.validate(this.mutationSchema, inputDataWithDefaults)
 
 		if (!validatorResult.valid) {
-			this._lastError = { err: new Error('Invalid'), data: validatorResult.error }
-			throw this._lastError.err
+			return {
+				document: undefined,
+				error: { err: new Error('Invalid'), data: validatorResult.error }
+			}
 		}
 
 		let rawData = {}
@@ -516,7 +521,7 @@ class Model {
 		
 		mappedData = this.dataMap(rawData)
 
-		return new Document(this, mappedData, query.inputs.fromSource(rawData), rawData)
+		return { document: new Document(this, mappedData, query.inputs.fromSource(rawData), rawData) }
 	}
 
 	async _execMutation(source, operation, data, selector) {
