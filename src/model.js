@@ -314,7 +314,7 @@ class Model {
 		const inputData = query.inputs.toSource(queryInput)
 		const dataWithDefaults = { ...this.defaults, ...data }
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
-
+		
 		if (!validatorResult.valid) {
 			return {
 				error: { err: new Error('Invalid'), data: validatorResult.error }

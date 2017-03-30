@@ -660,7 +660,7 @@ describe('multiple sources', async () => {
 
 		const Post = Model
 			.create()
-			.addSource('post', PostsSchema)
+			.addBoundSource('post', PostsSchema)
 			.addSource('author', UsersSchema)
 			.map(({ post, author }) => ({
 				title: post.title,
@@ -678,7 +678,6 @@ describe('multiple sources', async () => {
 					.populate('post', ({ post }) => ({ id: post.id }))
 					.populate('author', ({ post }) => ({ id: post.author }))
 			)
-			.bindSources(['post'])
 			
 		const doc = await Post.get(1)
 		expect(doc instanceof Document).toBeTruthy()
@@ -1564,5 +1563,51 @@ describe('validation', async () => {
 		expect(error.err.message).toBe('Invalid')
 		expect(error).toHaveProperty('err')
 		expect(error).toHaveProperty('data')
+	})
+
+	test('No type definitions', async() => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				},
+				{
+					id: 2,
+					title: 'Post 2',
+					content: 'This is the second post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.map(({ post }) => ({
+				title: post.title,
+				content: post.content,
+				date: { created: post.dateCreated }
+			}))
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		let doc = await Post.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			title: 'Post 1',
+			content: 'This is the first post',
+			date: { created: now }
+		})
+
+		const { document } = await doc.mutate({ title: 1337 })
+		expect(document instanceof Document).toBeTruthy()
 	})
 })
