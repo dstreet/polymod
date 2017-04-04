@@ -285,7 +285,7 @@ resolves with an object, which has two properties: `document` and `error`.
 
 ```javascript
 const order = await OrderDetail.get(1)
-const { document: updatedOrder } = await order.mutate('removeProductByTitle', 'JavaScript: The Good Parts')
+const [ updatedOrder ] = await order.mutate('removeProductByTitle', 'JavaScript: The Good Parts')
 ```
 
 Result:
@@ -434,7 +434,7 @@ expected manor:
 
 ```javascript
 const order = OrderDetail.get(1)
-const { document: updatedOrder } = order.mutate({
+const [ updatedOrder ] = order.mutate({
 	shipped: true,
 	customer: 2
 })
@@ -448,7 +448,7 @@ using the `create` method. When creating a new document, data will be created
 using on any update or create mutation operations and default values.
 
 ```javascript
-const { document } = OrderDetail.create({
+const [ document ] = OrderDetail.create({
 	customer: 2,
 	products: [1]
 })
@@ -462,7 +462,7 @@ mutation or creating a new document. If a value is provided that does not meet
 a property's requirements, an error will be returned.
 
 ```javascript
-const { document, error } = OrderDetail.create({
+const [ document, error ] = OrderDetail.create({
 	customer: 'Joe',
 	products: 1
 })

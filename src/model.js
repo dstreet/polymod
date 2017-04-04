@@ -316,9 +316,10 @@ class Model {
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
 		
 		if (!validatorResult.valid) {
-			return {
-				error: { err: new Error('Invalid'), data: validatorResult.error }
-			}
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
 		}
 
 		const mutationData = this._getMutations(Object.keys(dataWithDefaults))
@@ -361,7 +362,7 @@ class Model {
 			}
 		}
 
-		return { document: await this.query(queryName, queryInput) }
+		return [ await this.query(queryName, queryInput) ]
 	}
 
 	/**
@@ -384,10 +385,10 @@ class Model {
 		const validatorResult = validator.validate(mutation.type, data)
 
 		if (!validatorResult.valid) {
-			return {
-				document: undefined,
-				error: { err: new Error('Invalid'), data: validatorResult.error }
-			}
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
 		}
 
 		for (const method of mutation.methods) {
@@ -398,7 +399,7 @@ class Model {
 			await this._execMutation(source, method.operation, mutatedData, population.select(inputData))
 		}
 
-		return { document: await this.query(queryName, queryInput) }
+		return [await this.query(queryName, queryInput) ]
 	}
 
 	/**
@@ -452,10 +453,10 @@ class Model {
 		const validatorResult = validator.validate(this.mutationSchema, inputDataWithDefaults)
 
 		if (!validatorResult.valid) {
-			return {
-				document: undefined,
-				error: { err: new Error('Invalid'), data: validatorResult.error }
-			}
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
 		}
 
 		let rawData = {}
@@ -517,7 +518,7 @@ class Model {
 		
 		mappedData = this.dataMap(rawData)
 
-		return { document: new Document(this, mappedData, query.inputs.fromSource(rawData), rawData) }
+		return [ new Document(this, mappedData, query.inputs.fromSource(rawData), rawData) ]
 	}
 
 	async _execMutation(source, operation, data, selector) {

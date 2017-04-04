@@ -123,7 +123,7 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 
-		let { document } = await doc.mutate({
+		let [ document ] = await doc.mutate({
 			title: 'Updated Title',
 			content: 'This is the first post'
 		})
@@ -184,7 +184,7 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 
-		let { document: doc1 } = await doc.mutate('updateTitle', 'Updated Title')
+		let [ doc1 ] = await doc.mutate('updateTitle', 'Updated Title')
 		expect(doc1 instanceof Document).toBeTruthy()
 		expect(doc1.data).toEqual({
 			title: 'Updated Title',
@@ -193,7 +193,7 @@ describe('single source', async () => {
 		})
 
 		const now2 = new Date()
-		let { document: doc2 } = await doc1.mutate('updateAll', {
+		let [ doc2 ] = await doc1.mutate('updateAll', {
 			title: 'Updated Again',
 			content: 'Look at me!',
 			date: { created: now2 }
@@ -328,7 +328,7 @@ describe('single source', async () => {
 			date: { created: now }
 		})
 		
-		let { document } = await Post.create({
+		let [ document ] = await Post.create({
 			title: 'New Post',
 			content: 'New post content'
 		})
@@ -595,6 +595,7 @@ describe('multiple sources', async () => {
 			)
 			
 		let doc = await Post.get(1)
+		
 		expect(doc instanceof Document).toBeTruthy()
 		expect(doc.data).toEqual({
 			title: 'Post 1',
@@ -606,9 +607,10 @@ describe('multiple sources', async () => {
 			}
 		})
 
-		let { document } = await doc.mutate({
+		let [ document ] = await doc.mutate({
 			author: 2
 		})
+		
 		expect(document instanceof Document).toBeTruthy()
 		expect(document.data).toEqual({
 			title: 'Post 1',
@@ -812,7 +814,7 @@ describe('multiple sources', async () => {
 			}
 		})
 
-		let { document } = await Post.create({
+		let [ document ] = await Post.create({
 			title: 'New Post',
 			content: 'New post content',
 			author: 2
@@ -1052,7 +1054,7 @@ describe('array source', async () => {
 			tags: ['Sevr', 'MongoDB']
 		})
 
-		let { document: doc1 } = await doc.mutate('pushTag', 3)
+		let [ doc1 ] = await doc.mutate('pushTag', 3)
 		expect(doc1 instanceof Document).toBeTruthy()
 		expect(doc1.data).toEqual({
 			title: 'Post 1',
@@ -1061,7 +1063,7 @@ describe('array source', async () => {
 			tags: ['Sevr', 'MongoDB', 'React']
 		})
 
-		let { document: doc2 } = await doc1.mutate({
+		let [ doc2 ] = await doc1.mutate({
 			tags: [1, 2]
 		})
 		expect(doc2 instanceof Document).toBeTruthy()
@@ -1238,7 +1240,7 @@ describe('array source', async () => {
 			tags: ['Sevr', 'MongoDB']
 		})
 
-		let { document } = await Post.create({
+		let [ document ] = await Post.create({
 			title: 'New Post',
 			content: 'New post content',
 			tags: [2, 3]
@@ -1414,11 +1416,11 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 
-		const { error: error1 } = await doc.mutate({ title: 1337 })
+		const [, error1 ] = await doc.mutate({ title: 1337 })
 		expect(error1).toHaveProperty('err')
 		expect(error1).toHaveProperty('data')
 
-		const { error: error2 } = await doc.mutate({ content: '' })
+		const [, error2 ] = await doc.mutate({ content: '' })
 		expect(error2.err.message).toBe('Invalid')
 		expect(error2.data[0]).toHaveProperty('reason', 'optional')
 	})
@@ -1484,7 +1486,7 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 
-		const { error } = await doc.mutate('updateTitle', 1337)
+		const [, error ] = await doc.mutate('updateTitle', 1337)
 		expect(error.err.message).toBe('Invalid')
 		expect(error).toHaveProperty('err')
 		expect(error).toHaveProperty('data')
@@ -1557,7 +1559,7 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 		
-		const { error } = await Post.create({
+		const [, error ] = await Post.create({
 			title: 1337
 		})
 		expect(error.err.message).toBe('Invalid')
@@ -1607,7 +1609,7 @@ describe('validation', async () => {
 			date: { created: now }
 		})
 
-		const { document } = await doc.mutate({ title: 1337 })
+		const [ document ] = await doc.mutate({ title: 1337 })
 		expect(document instanceof Document).toBeTruthy()
 	})
 })
