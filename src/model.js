@@ -1,12 +1,15 @@
 const Document = require('./document')
+const validator = require('./validator')
 
 class Model {
 	constructor() {
 		this.sources = []
 		this.boundSources = []
-		this.mutations = []
+		this.mutations = {}
 		this.queries = []
 		this.initializers = []
+		this.defaults = {}
+		this.mutationSchema = {}
 		this.dataMap = data => data
 	}
 
@@ -20,6 +23,74 @@ class Model {
 	 */
 	static create() {
 		return new Model()
+	}
+
+	/**
+	 * Get or set the data description
+	 * 
+	 * @param {Object} [dataDescription]
+	 * @returns {Object|Model}
+	 * 
+	 * @memberOf Model
+	 */
+	describe(dataDescription) {
+		if (!dataDescription) {
+			return Object.keys(this.dataDescription).reduce((acc, key) => ({
+				...acc,
+				[key]: {
+					type: this.dataDescription[key].type,
+					meta: this.dataDescription[key].meta,
+					mutable: 'mutation' in this.dataDescription[key]
+				}
+			}), {})
+		}
+
+		this.dataDescription = dataDescription
+		
+		// Build a dataMap function from the data properties of each descriptor
+		this.dataMap = data => Object.keys(dataDescription).reduce((acc, key) => ({
+			...acc, [key]: dataDescription[key].data(data)
+		}), {})
+
+		// Store the mutations for each descriptor
+		this.mutations = Object.keys(dataDescription).reduce((acc, key) => {
+			if ('mutation' in dataDescription[key])	{
+				return {
+					...acc,
+					[key]: {
+						methods: [].concat(dataDescription[key].mutation.method),
+						type: dataDescription[key].mutation.type || dataDescription[key].type
+					}
+				}
+			}
+
+			return acc
+		}, this.mutations)
+
+		this.defaults = Object.keys(dataDescription).reduce((acc, key) => {
+			if ('default' in dataDescription[key]) {
+				return { ...acc, [key]: dataDescription[key].default }
+			}
+
+			return acc
+		}, {})
+
+		this.mutationSchema = {
+			type: 'object',
+			properties: Object.keys(dataDescription).reduce((acc, key) => {
+				let type
+
+				if ('mutation' in dataDescription[key] && 'type' in dataDescription[key].mutation) {
+					type = validator.parseType(dataDescription[key].mutation.type, dataDescription[key].required)
+				} else {
+					type = validator.parseType(dataDescription[key].type, dataDescription[key].required)
+				}
+
+				return { ...acc, [key]: type }
+			}, {})
+		}
+
+		return this
 	}
 
 	/**
@@ -65,25 +136,30 @@ class Model {
 	 * A mutation is a method used to change the source data in some way.
 	 * It is the only means of updating data in the model.
 	 * 
-	 * The `fn` parameter is a function that will receive the input data,
-	 * and the currently available document data. It should return an array
+	 * The `data` property is a function that will receive the input data,
+	 * and the currently available document data.
 	 * 
 	 * **Example**
 	 * 
 	 * ```javascript
-	 * .addMutation('updateTitle', (title, data) => ([
-	 * 		{ source: 'post', data: { title } }
-	 * ])
+	 * .addMutation('updateTitle', [
+	 * 		{ source: 'post', data: title => { title } }
+	 * ], String)
 	 * ```
 	 * 
 	 * @param {String} name 
-	 * @param {Function} fn 
+	 * @param {Array|Object|Function} method 
+	 * @param {Any} type
 	 * @returns {Model}
 	 * 
 	 * @memberOf Model
 	 */
-	addMutation(name, fn) {
-		this.mutations.push({ name, fn })
+	addMutation(name, method, type) {
+		this.mutations[name] = {
+			methods: [].concat(method),
+			type: validator.parseType(type)
+		}
+
 		return this
 	}
 
@@ -223,40 +299,107 @@ class Model {
 	}
 
 	/**
-	 * Apply a mutation
+	 * Apply mutations
+	 * 
+	 * @param {any} queryInput 
+	 * @param {String} queryName 
+	 * @param {Object} data 
+	 * @param {Object} docData 
+	 * @returns {Object}
+	 * 
+	 * @memberOf Model
+	 */
+	async mutate(queryInput, queryName, data, docData) {
+		const query = this._getQuery(queryName || 'default')
+		const inputData = query.inputs.toSource(queryInput)
+		const dataWithDefaults = { ...this.defaults, ...data }
+		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
+		
+		if (!validatorResult.valid) {
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
+		}
+
+		const mutationData = this._getMutations(Object.keys(dataWithDefaults))
+			// Group mutations by source and operation, and apply the data function
+			// This enables the ability to send a single query to the source schema when
+			// multiple properties are being edited.
+			.reduce((acc, item) => {
+				const source = item.source
+				const operation = item.operation || 'update'
+				const itemData = item.data(data[item.property], docData)
+
+				if (source in acc) {
+					return {
+						...acc,
+						[source]: {
+							...acc[source],
+							[operation]: acc[source][operation] ?
+								{...acc[source][operation], ...itemData} :
+								itemData
+						}
+					}
+				} else {
+					return {
+						...acc,
+						[source]: {
+							[operation]: itemData
+						}
+					}
+				}
+			}, {})
+
+		for (const sourceName of Object.keys(mutationData)) {
+			const source = this._getSource(sourceName)
+			const population = query.populations.find(pop => pop.source === sourceName)
+
+			for (const operation of Object.keys(mutationData[sourceName])) {
+				const data = mutationData[sourceName][operation]
+
+				await this._execMutation(source, operation, data, population.select(inputData))
+			}
+		}
+
+		return [ await this.query(queryName, queryInput) ]
+	}
+
+	/**
+	 * Apply a named mutation
 	 * 
 	 * @param {String} name 
 	 * @param {any} queryInput 
 	 * @param {String} queryName 
 	 * @param {Object} data 
 	 * @param {Object} docData 
-	 * @returns {Document|Document[]}
+	 * @returns {Object}
 	 * 
 	 * @memberOf Model
 	 */
-	async mutate(name, queryInput, queryName, data, docData) {
+	async namedMutate(name, queryInput, queryName, data, docData) {
 		const query = this._getQuery(queryName || 'default')
 		const mutation = this._getMutation(name)
 		const inputData = query.inputs.toSource(queryInput)
-		const sourceData = mutation.fn(data, docData)
 
-		for (const item of sourceData) {
-			const source = this._getSource(item.source)
-			const population = query.populations.find(pop => pop.source === item.source)
+		const validatorResult = validator.validate(mutation.type, data)
 
-			switch (item.operation) {
-				case 'create':
-					await source.schema.create(item.data)
-					break
-				case 'delete':
-					await source.schema.del(item.data)
-					break
-				default:
-					await source.schema.update(population.select(inputData), item.data)
-			}
+		if (!validatorResult.valid) {
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
 		}
 
-		return this.query(queryName, queryInput)
+		for (const method of mutation.methods) {
+			const source = this._getSource(method.source)
+			const population = query.populations.find(pop => pop.source === method.source)
+			const mutatedData = method.data(data, docData)
+
+			await this._execMutation(source, method.operation, mutatedData, population.select(inputData))
+		}
+
+		return [await this.query(queryName, queryInput) ]
 	}
 
 	/**
@@ -291,29 +434,83 @@ class Model {
 	/**
 	 * Create a new model document
 	 * 
-	 * Execute each of the initializers and pass data through the default
-	 * query.
+	 * Apply 'update' and 'create' mutations and return a new Document using
+	 * the default query
 	 * 
 	 * @param {any} inputData 
-	 * @returns {Document||Document[]}
+	 * @returns {Object}
 	 * 
 	 * @memberOf Model
 	 */
 	async create(inputData) {
 		const query = this._getQuery('default')
+		const data = { ...this.defaults, ...inputData }
+		const inputDataWithDefaults = Object.keys(data).reduce((acc, key) => ({
+			...acc,
+			[key]: typeof data[key] === 'function' ? data[key]() : data[key]
+		}), {})
+
+		const validatorResult = validator.validate(this.mutationSchema, inputDataWithDefaults)
+
+		if (!validatorResult.valid) {
+			return [
+				undefined,
+				{ err: new Error('Invalid'), data: validatorResult.error }
+			]
+		}
+
 		let rawData = {}
 		let mappedData
 
+		const mutations = this._getMutations(Object.keys(inputDataWithDefaults))
+			// Group all mutations by source
+			.reduce((acc, item) => {
+				const source = item.source
+				const operation = item.operation || 'update'
+				const input = inputDataWithDefaults[item.property]
+
+				if (operation !== 'update' && operation !== 'create') return acc
+				
+				if (source in acc) {
+					return {
+						...acc,
+						[source]: [...acc[source], { fn: item.data, input }]
+					}
+				} else {
+					return {
+						...acc,
+						[source]: [{ fn: item.data, input }]
+					}
+				}
+			}, {})
+
 		for (const item of query.populations) {
 			const source = this._getSource(item.source)
-			const initializer = this.initializers.find(i => i.source === item.source)
+			const initializer = item.source in mutations
 			let sourceData
+			let data
 
+			// Create a new document for each source with an initializer.
+			// If the source does not have an initializer, process the source
+			// as if through a query
 			if (initializer) {
-				sourceData = await this._createFromSchema(source.schema, initializer.init(inputData, rawData), source.many)
+				if (source.many) {
+					// If source is many, data should be an array of objects
+					// rather than a single object
+					data = mutations[item.source].reduce((acc, mutation) => ([
+						...acc,
+						...mutation.fn(mutation.input, rawData)
+					]), [])
+				} else {
+					data = mutations[item.source].reduce((acc, mutation) => ({
+						...acc,
+						...mutation.fn(mutation.input, rawData)
+					}), {})
+				}
+
+				sourceData = await this._createFromSchema(source.schema, data, source.many)
 			} else {
-				const select = item.select(rawData)
-				sourceData = await this._readFromSchema(source.schema, select, source.many)
+				sourceData = await this._readFromSchema(source.schema, item.select(rawData), source.many)
 			}
 
 			rawData = { ...rawData, [source.name]: sourceData }
@@ -321,7 +518,33 @@ class Model {
 		
 		mappedData = this.dataMap(rawData)
 
-		return new Document(this, mappedData, query.inputs.fromSource(rawData), rawData)
+		return [ new Document(this, mappedData, query.inputs.fromSource(rawData), rawData) ]
+	}
+
+	async _execMutation(source, operation, data, selector) {
+		switch (operation) {
+			case 'create':
+				return await source.schema.create(data)
+			case 'delete':
+				return await source.schema.del(data)
+			default:
+				return await source.schema.update(selector, data)
+		}
+	}
+
+	_getMutations(names) {
+		return names.reduce((acc, prop) => {
+			if (prop in this.mutations) {
+				return acc.concat(
+					[].concat(this.mutations[prop].methods).map(method => ({
+						...method,
+						property: prop
+					}))
+				)
+			}
+
+			return acc
+		}, [])
 	}
 
 	_readFromSchema(schema, select, many) {
@@ -336,15 +559,7 @@ class Model {
 		return schema.read(select, !many)
 	}
 
-	_createFromSchema(schema, data, many) {
-		if (Array.isArray(data) && many) {
-			const promises = data.map(item => {
-				return schema.create(item)
-			})
-
-			return Promise.all(promises)
-		}
-
+	_createFromSchema(schema, data) {
 		return schema.create(data)
 	}
 
@@ -353,7 +568,7 @@ class Model {
 	}
 
 	_getMutation(name) {
-		return this.mutations.find(mutation => mutation.name === name)
+		return this.mutations[name]
 	}
 
 	_getQuery(name) {
