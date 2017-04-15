@@ -1613,3 +1613,101 @@ describe('validation', async () => {
 		expect(document instanceof Document).toBeTruthy()
 	})
 })
+
+describe.only('errors', async () => {
+	test('return empty document if required sources fails', async () => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		const doc = await Post.get(3)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toBeUndefined()
+	})
+
+	test('throw an error when data map fails and no required sources', async () => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema, false)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+		
+		expect.assertions(1)
+
+		try {
+			await Post.get(3)
+		} catch (err) {
+			expect(err.message).toEqual('Failed to create document')
+		}
+	})
+})

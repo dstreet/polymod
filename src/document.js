@@ -15,7 +15,7 @@ class Document {
 	 * @memberOf Document
 	 */
 	get data() {
-		return Object.assign({}, this._data)
+		return this._data ? Object.assign({}, this._data) : undefined
 	}
 
 	/**
