@@ -6,8 +6,12 @@ GraphQL and Falcor.
 ## Install
 
 ```
-npm install --save polymod
+npm install --save babel-polyfill polymod
 ```
+
+Polymod takes advantage of new JavaScript features like async/await. Because
+of this, `babel-polyfill` will need to be imported into your project or
+included in your webpack configuration.
 
 ## License
 
