@@ -1614,7 +1614,7 @@ describe('validation', async () => {
 	})
 })
 
-describe.only('errors', async () => {
+describe('errors', async () => {
 	test('return empty document if required sources fails', async () => {
 		const storage = new MemStore({
 			posts: [
