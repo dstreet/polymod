@@ -52,6 +52,20 @@ describe('parseType()', () => {
 			}
 		})
 	})
+
+	test('Custom validator', () => {
+		const schema = validator.parseType({
+			type: Number,
+			validator: {
+				fn: val => val < 100,
+				message: (schema, val) => `must be less than 100. Got ${val}`
+			}
+		})
+		
+		expect(schema).toHaveProperty('type', 'number')
+		expect(schema).toHaveProperty('optional', true)
+		expect(schema).toHaveProperty('exec')
+	})
 })
 
 describe('validate()', () => {
@@ -115,5 +129,20 @@ describe('validate()', () => {
 		expect(validator.validate(schema, {
 			name: { first: 'John', last: 'Doe' }
 		})).toHaveProperty('valid', false)
+	})
+
+	test('custom validator', () => {
+		const schema = validator.parseType({
+			type: Number,
+			validator: {
+				fn: val => val < 100,
+				message: (schema, val) => `must be less than 100. Got ${val}`
+			}
+		})
+		
+		const res = validator.validate(schema, 101)
+
+		expect(res).toHaveProperty('valid', false)
+		expect(res.error[0]).toHaveProperty('message', 'must be less than 100. Got 101')
 	})
 })

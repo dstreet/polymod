@@ -5417,9 +5417,9 @@ module.exports = Schema;
 "use strict";
 
 
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -5442,18 +5442,7 @@ module.exports = {
 		}
 
 		if (typeof type === 'function') {
-			switch (type) {
-				case String:
-					return { type: 'string', optional: !required };
-				case Number:
-					return { type: 'number', optional: !required };
-				case Date:
-					return { type: 'Date', optional: !required };
-				case Boolean:
-					return { type: 'boolean', optional: !required };
-				default:
-					return { type: type, optional: !required };
-			}
+			return _extends({}, expandTypeConstructor(type), { optional: !required });
 		}
 
 		if ((typeof type === 'undefined' ? 'undefined' : _typeof(type)) === 'object' && !type.type) {
@@ -5464,6 +5453,28 @@ module.exports = {
 					return _extends({}, acc, _defineProperty({}, key, _this.parseType(type[key], required)));
 				}, {})
 			};
+		} else if (type.type) {
+			var finalType = void 0;
+
+			if (typeof type.type === 'function') {
+				finalType = _extends({}, type, expandTypeConstructor(type.type), {
+					optional: !required
+				});
+			} else {
+				finalType = type;
+			}
+
+			if (type.validator) {
+				finalType = _extends({}, finalType, {
+					exec: function exec(schema, val) {
+						if (!type.validator.fn(val)) {
+							this.report(type.validator.message(schema, val));
+						}
+					}
+				});
+			}
+
+			return finalType;
 		} else {
 			return type;
 		}
@@ -5472,6 +5483,21 @@ module.exports = {
 		return inspector.validate(schema, data);
 	}
 };
+
+function expandTypeConstructor(type) {
+	switch (type) {
+		case String:
+			return { type: 'string' };
+		case Number:
+			return { type: 'number' };
+		case Date:
+			return { type: 'date' };
+		case Boolean:
+			return { type: 'boolean' };
+		default:
+			return { type: type };
+	}
+}
 
 /***/ }),
 /* 125 */
