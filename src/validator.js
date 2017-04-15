@@ -13,18 +13,7 @@ module.exports = {
 		}
 
 		if (typeof type === 'function') {
-			switch (type) {
-				case String:
-					return { type: 'string', optional: !required }
-				case Number:
-					return { type: 'number', optional: !required }
-				case Date:
-					return { type: 'Date', optional: !required }
-				case Boolean:
-					return { type: 'boolean', optional: !required }
-				default:
-					return { type, optional: !required }
-			}
+			return { ...expandTypeConstructor(type), optional: !required }
 		}
 
 		if (typeof type === 'object' && !type.type) {
@@ -36,6 +25,31 @@ module.exports = {
 					[key]: this.parseType(type[key], required)
 				}), {})	
 			}
+		} else if (type.type) {
+			let finalType
+
+			if (typeof type.type === 'function') {
+				finalType = {
+					...type,
+					...expandTypeConstructor(type.type),
+					optional: !required
+				}
+			} else {
+				finalType = type
+			}
+
+			if (type.validator) {
+				finalType = {
+					...finalType,
+					exec: function(schema, val) {
+						if (!type.validator.fn(val)) {
+							this.report(type.validator.message(schema, val))
+						}
+					}
+				}
+			}
+
+			return finalType
 		} else {
 			return type
 		}
@@ -43,5 +57,20 @@ module.exports = {
 
 	validate(schema, data) {
 		return inspector.validate(schema, data)
+	}
+}
+
+function expandTypeConstructor(type) {
+	switch (type) {
+		case String:
+			return { type: 'string' }
+		case Number:
+			return { type: 'number' }
+		case Date:
+			return { type: 'date' }
+		case Boolean:
+			return { type: 'boolean' }
+		default:
+			return { type }
 	}
 }
