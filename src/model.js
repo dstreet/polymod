@@ -102,14 +102,15 @@ class Model {
 	 * 
 	 * @param {String} name 
 	 * @param {Schema|Schema[]} schema
+	 * @param {Boolean} required
 	 * @returns {Model}
 	 * 
 	 * @memberOf Model
 	 */
-	addSource(name, schema) {
+	addSource(name, schema, required = true) {
 		const many = Array.isArray(schema)
 
-		this.sources.push({ name, schema: many ? schema[0] : schema, many })
+		this.sources.push({ name, schema: many ? schema[0] : schema, many, required })
 		return this
 	}
 
@@ -274,6 +275,11 @@ class Model {
 			const source = this._getSource(item.source)
 			const select = item.select(rawData)
 			const sourceData = await this._readFromSchema(source.schema, select, source.many)
+			
+			if (!sourceData && source.required) {
+				return new Document(this, undefined, inputData, queryName, undefined)
+			}
+
 			rawData = { ...rawData, [source.name]: sourceData }
 		}
 		
@@ -282,7 +288,11 @@ class Model {
 				return new Document(this, this.dataMap(item), inputData, queryName, item)
 			})
 		} else {
-			return new Document(this, this.dataMap(rawData), inputData, queryName, rawData)
+			try {
+				return new Document(this, this.dataMap(rawData), inputData, queryName, rawData)
+			} catch (e) {
+				throw new Error('Failed to create document')
+			}
 		}
 	}
 
