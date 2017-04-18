@@ -5,7 +5,14 @@ class ModelSchema {
 	}
 
 	get type() {
-		return this.model.describe()
+		if (this._type) return this._type
+
+		const descriptor = this.model.describe()
+		this._type = Object.keys(descriptor).reduce((acc, key) => {
+			return { ...acc, [key]: descriptor[key].type }
+		}, {})
+
+		return this._type
 	}
 
 	async create(data) {
