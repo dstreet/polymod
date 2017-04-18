@@ -48,9 +48,11 @@ class Model {
 		this.dataDescription = dataDescription
 		
 		// Build a dataMap function from the data properties of each descriptor
-		this.dataMap = data => Object.keys(dataDescription).reduce((acc, key) => ({
-			...acc, [key]: dataDescription[key].data(data)
-		}), {})
+		this.dataMap = data => Object.keys(dataDescription)
+			.filter(key => dataDescription[key].data)
+			.reduce((acc, key) => ({
+				...acc, [key]: dataDescription[key].data(data)
+			}), {})
 
 		// Store the mutations for each descriptor
 		this.mutations = Object.keys(dataDescription).reduce((acc, key) => {
