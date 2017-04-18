@@ -746,7 +746,9 @@ var Model = function () {
 
 			// Build a dataMap function from the data properties of each descriptor
 			this.dataMap = function (data) {
-				return Object.keys(dataDescription).reduce(function (acc, key) {
+				return Object.keys(dataDescription).filter(function (key) {
+					return dataDescription[key].data;
+				}).reduce(function (acc, key) {
 					return _extends({}, acc, _defineProperty({}, key, dataDescription[key].data(data)));
 				}, {});
 			};

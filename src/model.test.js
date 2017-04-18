@@ -1711,3 +1711,53 @@ describe('errors', async () => {
 		}
 	})
 })
+
+describe('property access', async () => {
+	test('write-only properties', async () => {
+		const storage = new MemStore({
+			users: [
+				{
+					id: 1,
+					username: 'jdoe',
+					password: 'imasecret'
+				}
+			]
+		})
+		const UsersSchema = new Schema(storage, 'users')
+
+		const User = Model
+			.create()
+			.addSource('user', UsersSchema)
+			.describe({
+				id: {
+					type: Number,
+					data: ({ user }) => user.id
+				},
+				username: {
+					type: String,
+					data: ({ user }) => user.username
+				},
+				password: {
+					type: String,
+					mutation: {
+						method: { source: 'user', data: password => ({ password }) }
+					}
+				},
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ user: { id }}))
+					.populate('user', ({ user }) => ({ id: user.id }))
+			)
+
+		const doc = await User.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).not.toHaveProperty('password')
+
+		const [doc2] = await doc.mutate({ password: 'password2' })
+		expect(doc2 instanceof Document).toBeTruthy()
+		expect(doc2.data).not.toHaveProperty('password')
+		expect(storage._data.users[0].password).toBe('password2')
+	})
+})
