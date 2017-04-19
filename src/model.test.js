@@ -423,7 +423,8 @@ describe('single source', async () => {
 		expect(Post.describe()).toEqual({
 			title: {
 				type: String,
-				mutable: true
+				mutable: true,
+				modify: true
 			},
 			content: {
 				type: String,
@@ -431,11 +432,13 @@ describe('single source', async () => {
 					label: 'Content',
 					description: 'Post content'
 				},
-				mutable: false
+				mutable: false,
+				modify: true
 			},
 			date: {
 				type: { created: Date },
-				mutable: false
+				mutable: false,
+				modify: true
 			}
 		})
 	})
@@ -1761,7 +1764,7 @@ describe('property access', async () => {
 		expect(storage._data.users[0].password).toBe('password2')
 	})
 
-	test.only('property not modifiable', async () => {
+	test('property not modifiable', async () => {
 		const storage = new MemStore({
 			tags: [
 				{
