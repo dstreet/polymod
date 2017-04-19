@@ -1176,7 +1176,7 @@ var Model = function () {
 								query = this._getQuery(queryName || 'default');
 								inputData = query.inputs.toSource(queryInput);
 								filteredData = Object.keys(data).filter(function (key) {
-									return key in _this3.dataDescription && _this3.dataDescription[key].modify;
+									return _this3.dataDescription && key in _this3.dataDescription && _this3.dataDescription[key].modify;
 								}).reduce(function (acc, key) {
 									return _extends({}, acc, _defineProperty({}, key, data[key]));
 								}, {});
@@ -1388,7 +1388,7 @@ var Model = function () {
 
 								// If attempting to mutate a non-modifiable property, return an error
 
-								if (!(name in this.dataDescription && !this.dataDescription[name].modify)) {
+								if (!(this.dataDescription && name in this.dataDescription && !this.dataDescription[name].modify)) {
 									_context6.next = 5;
 									break;
 								}

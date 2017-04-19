@@ -331,7 +331,7 @@ class Model {
 		const query = this._getQuery(queryName || 'default')
 		const inputData = query.inputs.toSource(queryInput)
 		const filteredData = Object.keys(data)
-			.filter(key => key in this.dataDescription && this.dataDescription[key].modify)
+			.filter(key => this.dataDescription && key in this.dataDescription && this.dataDescription[key].modify)
 			.reduce((acc, key) => ({ ...acc, [key]: data[key] }), {})
 		const dataWithDefaults = { ...this.defaults, ...filteredData }
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
@@ -404,7 +404,7 @@ class Model {
 		const inputData = query.inputs.toSource(queryInput)
 
 		// If attempting to mutate a non-modifiable property, return an error
-		if (name in this.dataDescription && !this.dataDescription[name].modify) {
+		if (this.dataDescription && name in this.dataDescription && !this.dataDescription[name].modify) {
 			return [
 				undefined,
 				{ err: new Error(`Property '${name}' cannot be modified`) }
