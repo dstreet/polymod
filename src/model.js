@@ -40,12 +40,18 @@ class Model {
 				[key]: {
 					type: this.dataDescription[key].type,
 					meta: this.dataDescription[key].meta,
-					mutable: 'mutation' in this.dataDescription[key]
+					mutable: 'mutation' in this.dataDescription[key],
+					modify: this.dataDescription[key].modify
 				}
 			}), {})
 		}
 
-		this.dataDescription = dataDescription
+		this.dataDescription = Object.keys(dataDescription).reduce((acc, key) => {
+			return {
+				...acc,
+				[key]: { modify: true, ...dataDescription[key] }
+			}
+		}, {})
 		
 		// Build a dataMap function from the data properties of each descriptor
 		this.dataMap = data => Object.keys(dataDescription)
@@ -324,7 +330,10 @@ class Model {
 	async mutate(queryInput, queryName, data, docData) {
 		const query = this._getQuery(queryName || 'default')
 		const inputData = query.inputs.toSource(queryInput)
-		const dataWithDefaults = { ...this.defaults, ...data }
+		const filteredData = Object.keys(data)
+			.filter(key => this.dataDescription && key in this.dataDescription && this.dataDescription[key].modify)
+			.reduce((acc, key) => ({ ...acc, [key]: data[key] }), {})
+		const dataWithDefaults = { ...this.defaults, ...filteredData }
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
 		
 		if (!validatorResult.valid) {
@@ -341,7 +350,7 @@ class Model {
 			.reduce((acc, item) => {
 				const source = item.source
 				const operation = item.operation || 'update'
-				const itemData = item.data(data[item.property], docData)
+				const itemData = item.data(dataWithDefaults[item.property], docData)
 
 				if (source in acc) {
 					return {
@@ -393,6 +402,14 @@ class Model {
 		const query = this._getQuery(queryName || 'default')
 		const mutation = this._getMutation(name)
 		const inputData = query.inputs.toSource(queryInput)
+
+		// If attempting to mutate a non-modifiable property, return an error
+		if (this.dataDescription && name in this.dataDescription && !this.dataDescription[name].modify) {
+			return [
+				undefined,
+				{ err: new Error(`Property '${name}' cannot be modified`) }
+			]
+		}
 
 		const validatorResult = validator.validate(mutation.type, data)
 

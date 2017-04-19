@@ -737,12 +737,15 @@ var Model = function () {
 					return _extends({}, acc, _defineProperty({}, key, {
 						type: _this.dataDescription[key].type,
 						meta: _this.dataDescription[key].meta,
-						mutable: 'mutation' in _this.dataDescription[key]
+						mutable: 'mutation' in _this.dataDescription[key],
+						modify: _this.dataDescription[key].modify
 					}));
 				}, {});
 			}
 
-			this.dataDescription = dataDescription;
+			this.dataDescription = Object.keys(dataDescription).reduce(function (acc, key) {
+				return _extends({}, acc, _defineProperty({}, key, _extends({ modify: true }, dataDescription[key])));
+			}, {});
 
 			// Build a dataMap function from the data properties of each descriptor
 			this.dataMap = function (data) {
@@ -1164,7 +1167,7 @@ var Model = function () {
 			var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(queryInput, queryName, data, docData) {
 				var _this3 = this;
 
-				var query, inputData, dataWithDefaults, validatorResult, mutationData, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _loop, _iterator2, _step2;
+				var query, inputData, filteredData, dataWithDefaults, validatorResult, mutationData, _iteratorNormalCompletion2, _didIteratorError2, _iteratorError2, _loop, _iterator2, _step2;
 
 				return regeneratorRuntime.wrap(function _callee3$(_context4) {
 					while (1) {
@@ -1172,17 +1175,22 @@ var Model = function () {
 							case 0:
 								query = this._getQuery(queryName || 'default');
 								inputData = query.inputs.toSource(queryInput);
-								dataWithDefaults = _extends({}, this.defaults, data);
+								filteredData = Object.keys(data).filter(function (key) {
+									return _this3.dataDescription && key in _this3.dataDescription && _this3.dataDescription[key].modify;
+								}).reduce(function (acc, key) {
+									return _extends({}, acc, _defineProperty({}, key, data[key]));
+								}, {});
+								dataWithDefaults = _extends({}, this.defaults, filteredData);
 								validatorResult = validator.validate(this.mutationSchema, dataWithDefaults);
 
 								if (validatorResult.valid) {
-									_context4.next = 6;
+									_context4.next = 7;
 									break;
 								}
 
 								return _context4.abrupt('return', [undefined, { err: new Error('Invalid'), data: validatorResult.error }]);
 
-							case 6:
+							case 7:
 								mutationData = this._getMutations(Object.keys(dataWithDefaults))
 								// Group mutations by source and operation, and apply the data function
 								// This enables the ability to send a single query to the source schema when
@@ -1190,7 +1198,7 @@ var Model = function () {
 								.reduce(function (acc, item) {
 									var source = item.source;
 									var operation = item.operation || 'update';
-									var itemData = item.data(data[item.property], docData);
+									var itemData = item.data(dataWithDefaults[item.property], docData);
 
 									if (source in acc) {
 										return _extends({}, acc, _defineProperty({}, source, _extends({}, acc[source], _defineProperty({}, operation, acc[source][operation] ? _extends({}, acc[source][operation], itemData) : itemData))));
@@ -1201,7 +1209,7 @@ var Model = function () {
 								_iteratorNormalCompletion2 = true;
 								_didIteratorError2 = false;
 								_iteratorError2 = undefined;
-								_context4.prev = 10;
+								_context4.prev = 11;
 								_loop = regeneratorRuntime.mark(function _loop() {
 									var sourceName, source, population, _iteratorNormalCompletion3, _didIteratorError3, _iteratorError3, _iterator3, _step3, operation, _data;
 
@@ -1279,67 +1287,67 @@ var Model = function () {
 								});
 								_iterator2 = Object.keys(mutationData)[Symbol.iterator]();
 
-							case 13:
+							case 14:
 								if (_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done) {
-									_context4.next = 18;
+									_context4.next = 19;
 									break;
 								}
 
-								return _context4.delegateYield(_loop(), 't0', 15);
+								return _context4.delegateYield(_loop(), 't0', 16);
 
-							case 15:
+							case 16:
 								_iteratorNormalCompletion2 = true;
-								_context4.next = 13;
+								_context4.next = 14;
 								break;
 
-							case 18:
-								_context4.next = 24;
+							case 19:
+								_context4.next = 25;
 								break;
 
-							case 20:
-								_context4.prev = 20;
-								_context4.t1 = _context4['catch'](10);
+							case 21:
+								_context4.prev = 21;
+								_context4.t1 = _context4['catch'](11);
 								_didIteratorError2 = true;
 								_iteratorError2 = _context4.t1;
 
-							case 24:
-								_context4.prev = 24;
+							case 25:
 								_context4.prev = 25;
+								_context4.prev = 26;
 
 								if (!_iteratorNormalCompletion2 && _iterator2.return) {
 									_iterator2.return();
 								}
 
-							case 27:
-								_context4.prev = 27;
+							case 28:
+								_context4.prev = 28;
 
 								if (!_didIteratorError2) {
-									_context4.next = 30;
+									_context4.next = 31;
 									break;
 								}
 
 								throw _iteratorError2;
 
-							case 30:
-								return _context4.finish(27);
-
 							case 31:
-								return _context4.finish(24);
+								return _context4.finish(28);
 
 							case 32:
-								_context4.next = 34;
+								return _context4.finish(25);
+
+							case 33:
+								_context4.next = 35;
 								return this.query(queryName, queryInput);
 
-							case 34:
+							case 35:
 								_context4.t2 = _context4.sent;
 								return _context4.abrupt('return', [_context4.t2]);
 
-							case 36:
+							case 37:
 							case 'end':
 								return _context4.stop();
 						}
 					}
-				}, _callee3, this, [[10, 20, 24, 32], [25,, 27, 31]]);
+				}, _callee3, this, [[11, 21, 25, 33], [26,, 28, 32]]);
 			}));
 
 			function mutate(_x5, _x6, _x7, _x8) {
@@ -1377,20 +1385,31 @@ var Model = function () {
 								query = this._getQuery(queryName || 'default');
 								mutation = this._getMutation(name);
 								inputData = query.inputs.toSource(queryInput);
+
+								// If attempting to mutate a non-modifiable property, return an error
+
+								if (!(this.dataDescription && name in this.dataDescription && !this.dataDescription[name].modify)) {
+									_context6.next = 5;
+									break;
+								}
+
+								return _context6.abrupt('return', [undefined, { err: new Error('Property \'' + name + '\' cannot be modified') }]);
+
+							case 5:
 								validatorResult = validator.validate(mutation.type, data);
 
 								if (validatorResult.valid) {
-									_context6.next = 6;
+									_context6.next = 8;
 									break;
 								}
 
 								return _context6.abrupt('return', [undefined, { err: new Error('Invalid'), data: validatorResult.error }]);
 
-							case 6:
+							case 8:
 								_iteratorNormalCompletion4 = true;
 								_didIteratorError4 = false;
 								_iteratorError4 = undefined;
-								_context6.prev = 9;
+								_context6.prev = 11;
 								_loop2 = regeneratorRuntime.mark(function _loop2() {
 									var method, source, population, mutatedData;
 									return regeneratorRuntime.wrap(function _loop2$(_context5) {
@@ -1415,67 +1434,67 @@ var Model = function () {
 								});
 								_iterator4 = mutation.methods[Symbol.iterator]();
 
-							case 12:
+							case 14:
 								if (_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done) {
-									_context6.next = 17;
+									_context6.next = 19;
 									break;
 								}
 
-								return _context6.delegateYield(_loop2(), 't0', 14);
+								return _context6.delegateYield(_loop2(), 't0', 16);
 
-							case 14:
+							case 16:
 								_iteratorNormalCompletion4 = true;
-								_context6.next = 12;
-								break;
-
-							case 17:
-								_context6.next = 23;
+								_context6.next = 14;
 								break;
 
 							case 19:
-								_context6.prev = 19;
-								_context6.t1 = _context6['catch'](9);
+								_context6.next = 25;
+								break;
+
+							case 21:
+								_context6.prev = 21;
+								_context6.t1 = _context6['catch'](11);
 								_didIteratorError4 = true;
 								_iteratorError4 = _context6.t1;
 
-							case 23:
-								_context6.prev = 23;
-								_context6.prev = 24;
+							case 25:
+								_context6.prev = 25;
+								_context6.prev = 26;
 
 								if (!_iteratorNormalCompletion4 && _iterator4.return) {
 									_iterator4.return();
 								}
 
-							case 26:
-								_context6.prev = 26;
+							case 28:
+								_context6.prev = 28;
 
 								if (!_didIteratorError4) {
-									_context6.next = 29;
+									_context6.next = 31;
 									break;
 								}
 
 								throw _iteratorError4;
 
-							case 29:
-								return _context6.finish(26);
-
-							case 30:
-								return _context6.finish(23);
-
 							case 31:
-								_context6.next = 33;
-								return this.query(queryName, queryInput);
+								return _context6.finish(28);
+
+							case 32:
+								return _context6.finish(25);
 
 							case 33:
+								_context6.next = 35;
+								return this.query(queryName, queryInput);
+
+							case 35:
 								_context6.t2 = _context6.sent;
 								return _context6.abrupt('return', [_context6.t2]);
 
-							case 35:
+							case 37:
 							case 'end':
 								return _context6.stop();
 						}
 					}
-				}, _callee4, this, [[9, 19, 23, 31], [24,, 26, 30]]);
+				}, _callee4, this, [[11, 21, 25, 33], [26,, 28, 32]]);
 			}));
 
 			function namedMutate(_x9, _x10, _x11, _x12, _x13) {
