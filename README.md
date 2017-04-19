@@ -1,5 +1,8 @@
 # Polymod
 
+![Travis CI](https://travis-ci.org/dstreet/bento-box.svg?branch=master)
+[![npm](https://img.shields.io/npm/v/polymod.svg)]()
+
 A library for composing data models from any number of sources inspired by
 GraphQL and Falcor.
 
