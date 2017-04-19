@@ -1,6 +1,7 @@
 # Polymod
 
 ![Travis CI](https://travis-ci.org/dstreet/bento-box.svg?branch=master)
+[![Known Vulnerabilities](https://snyk.io/test/github/dstreet/polymod/badge.svg)](https://snyk.io/test/github/dstreet/polymod)
 [![npm](https://img.shields.io/npm/v/polymod.svg)]()
 
 A library for composing data models from any number of sources inspired by
