@@ -1760,4 +1760,75 @@ describe('property access', async () => {
 		expect(doc2.data).not.toHaveProperty('password')
 		expect(storage._data.users[0].password).toBe('password2')
 	})
+
+	test.only('property not modifiable', async () => {
+		const storage = new MemStore({
+			tags: [
+				{
+					id: 1,
+					title: 'React',
+					slug: 'react'
+				}
+			]
+		})
+		const TagsSchema = new Schema(storage, 'tags')
+
+		const Tag = Model
+			.create()
+			.addSource('tag', TagsSchema)
+			.describe({
+				id: {
+					type: Number,
+					data: ({ tag }) => tag.id
+				},
+				title: {
+					type: String,
+					data: ({ tag }) => tag.title,
+					modify: false,
+					mutation: {
+						method: { source: 'tag', data: title => ({ title }) }
+					}
+				},
+				slug: {
+					type: String,
+					data: ({ tag }) => tag.slug,
+					mutation: {
+						method: { source: 'tag', data: slug => ({ slug }) }
+					}
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(
+						id => ({ tag: { id }}),
+						({ tag }) => tag.id
+					)
+					.populate('tag', ({ tag }) => ({ id: tag.id }))
+			)
+		
+		const doc = await Tag.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			id: 1,
+			title: 'React',
+			slug: 'react'
+		})
+
+		const [doc2] = await doc.mutate({ title: 'Polymod', slug: 'polymod' })
+		expect(doc2.data).toEqual({
+			id: 1,
+			title: 'React',
+			slug: 'polymod'
+		})
+
+		const [doc3, error] = await doc2.mutate('title', 'Polymod')
+		expect(doc3).toBeUndefined()
+		expect(error.err.message).toEqual('Property \'title\' cannot be modified')
+
+		const [doc4] = await Tag.create({ title: 'Polymod', slug: 'polymod' })
+		expect(doc4 instanceof Document).toBeTruthy()
+		expect(doc4.data).toHaveProperty('title', 'Polymod')
+		expect(doc4.data).toHaveProperty('slug', 'polymod')	
+	})
 })
