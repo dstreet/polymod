@@ -423,7 +423,8 @@ describe('single source', async () => {
 		expect(Post.describe()).toEqual({
 			title: {
 				type: String,
-				mutable: true
+				mutable: true,
+				modify: true
 			},
 			content: {
 				type: String,
@@ -431,11 +432,13 @@ describe('single source', async () => {
 					label: 'Content',
 					description: 'Post content'
 				},
-				mutable: false
+				mutable: false,
+				modify: true
 			},
 			date: {
 				type: { created: Date },
-				mutable: false
+				mutable: false,
+				modify: true
 			}
 		})
 	})
@@ -1611,5 +1614,224 @@ describe('validation', async () => {
 
 		const [ document ] = await doc.mutate({ title: 1337 })
 		expect(document instanceof Document).toBeTruthy()
+	})
+})
+
+describe('errors', async () => {
+	test('return empty document if required sources fails', async () => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+
+		const doc = await Post.get(3)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toBeUndefined()
+	})
+
+	test('throw an error when data map fails and no required sources', async () => {
+		const storage = new MemStore({
+			posts: [
+				{
+					id: 1,
+					title: 'Post 1',
+					content: 'This is the first post',
+					dateCreated: now
+				}
+			]
+		})
+		const PostsSchema = new Schema(storage, 'posts', 'id')
+
+		const Post = Model
+			.create()
+			.addSource('post', PostsSchema, false)
+			.describe({
+				title: {
+					type: String,
+					data: ({ post }) => post.title
+				},
+				content: {
+					type: String,
+					data: ({ post }) => post.content
+				},
+				date: {
+					type: {
+						created: Date	
+					},
+					data: ({ post }) => ({
+						created: post.dateCreated
+					})
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ post: { id }}))
+					.populate('post', ({ post }) => ({ id: post.id }))
+			)
+		
+		expect.assertions(1)
+
+		try {
+			await Post.get(3)
+		} catch (err) {
+			expect(err.message).toEqual('Failed to create document')
+		}
+	})
+})
+
+describe('property access', async () => {
+	test('write-only properties', async () => {
+		const storage = new MemStore({
+			users: [
+				{
+					id: 1,
+					username: 'jdoe',
+					password: 'imasecret'
+				}
+			]
+		})
+		const UsersSchema = new Schema(storage, 'users')
+
+		const User = Model
+			.create()
+			.addSource('user', UsersSchema)
+			.describe({
+				id: {
+					type: Number,
+					data: ({ user }) => user.id
+				},
+				username: {
+					type: String,
+					data: ({ user }) => user.username
+				},
+				password: {
+					type: String,
+					mutation: {
+						method: { source: 'user', data: password => ({ password }) }
+					}
+				},
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(id => ({ user: { id }}))
+					.populate('user', ({ user }) => ({ id: user.id }))
+			)
+
+		const doc = await User.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).not.toHaveProperty('password')
+
+		const [doc2] = await doc.mutate({ password: 'password2' })
+		expect(doc2 instanceof Document).toBeTruthy()
+		expect(doc2.data).not.toHaveProperty('password')
+		expect(storage._data.users[0].password).toBe('password2')
+	})
+
+	test('property not modifiable', async () => {
+		const storage = new MemStore({
+			tags: [
+				{
+					id: 1,
+					title: 'React',
+					slug: 'react'
+				}
+			]
+		})
+		const TagsSchema = new Schema(storage, 'tags')
+
+		const Tag = Model
+			.create()
+			.addSource('tag', TagsSchema)
+			.describe({
+				id: {
+					type: Number,
+					data: ({ tag }) => tag.id
+				},
+				title: {
+					type: String,
+					data: ({ tag }) => tag.title,
+					modify: false,
+					mutation: {
+						method: { source: 'tag', data: title => ({ title }) }
+					}
+				},
+				slug: {
+					type: String,
+					data: ({ tag }) => tag.slug,
+					mutation: {
+						method: { source: 'tag', data: slug => ({ slug }) }
+					}
+				}
+			})
+			.addQuery('default',
+				Query
+					.create()
+					.input(
+						id => ({ tag: { id }}),
+						({ tag }) => tag.id
+					)
+					.populate('tag', ({ tag }) => ({ id: tag.id }))
+			)
+		
+		const doc = await Tag.get(1)
+		expect(doc instanceof Document).toBeTruthy()
+		expect(doc.data).toEqual({
+			id: 1,
+			title: 'React',
+			slug: 'react'
+		})
+
+		const [doc2] = await doc.mutate({ title: 'Polymod', slug: 'polymod' })
+		expect(doc2.data).toEqual({
+			id: 1,
+			title: 'React',
+			slug: 'polymod'
+		})
+
+		const [doc3, error] = await doc2.mutate('title', 'Polymod')
+		expect(doc3).toBeUndefined()
+		expect(error.err.message).toEqual('Property \'title\' cannot be modified')
+
+		const [doc4] = await Tag.create({ title: 'Polymod', slug: 'polymod' })
+		expect(doc4 instanceof Document).toBeTruthy()
+		expect(doc4.data).toHaveProperty('title', 'Polymod')
+		expect(doc4.data).toHaveProperty('slug', 'polymod')	
 	})
 })

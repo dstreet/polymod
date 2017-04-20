@@ -10,8 +10,12 @@ GraphQL and Falcor.
 ## Install
 
 ```
-npm install --save polymod
+npm install --save babel-polyfill polymod
 ```
+
+Polymod takes advantage of new JavaScript features like async/await. Because
+of this, `babel-polyfill` will need to be imported into your project or
+included in your webpack configuration.
 
 ## License
 
@@ -30,6 +34,7 @@ npm install --save polymod
 - [Data Descriptors](#describe)
 - [Creating a document](#create)
 - [Validation](#validation)
+- [Non-modifiable properties](#non-modifiable)
 
 ---
 
@@ -483,4 +488,35 @@ passing a type as a parameter:
 OrderDetail.addMutation('payed', [
 	{ source: 'order', data: payed => payed ? new Date() : null }
 ], Boolean)
+```
+
+<a name="non-modifiable"></a>
+## Non-modifiable properties
+
+It may be beneficial to have model properties that can be created, but once
+created cannot be modified. To do this, `modify: false` can be added to the
+property descriptor. By default every property that has a mutation is
+modifiable. Using the example above, the `customer` property should not be
+allowed to be modified once the order has been created. This can be achieved
+by altering the property descriptor such that:
+
+```javascript
+...
+customer: {
+	type: {
+		name: String,
+		address: String
+	},
+	required: true,
+	modify: false,
+	data: ({ customer }) => ({
+		name: customer.name,
+		address: customer.address
+	}),
+	mutation: {
+		type: String,
+		method: { source: 'order' data: customerId => ({ customer: customerId }) }
+	}
+}
+...
 ```

@@ -40,17 +40,25 @@ class Model {
 				[key]: {
 					type: this.dataDescription[key].type,
 					meta: this.dataDescription[key].meta,
-					mutable: 'mutation' in this.dataDescription[key]
+					mutable: 'mutation' in this.dataDescription[key],
+					modify: this.dataDescription[key].modify
 				}
 			}), {})
 		}
 
-		this.dataDescription = dataDescription
+		this.dataDescription = Object.keys(dataDescription).reduce((acc, key) => {
+			return {
+				...acc,
+				[key]: { modify: true, ...dataDescription[key] }
+			}
+		}, {})
 		
 		// Build a dataMap function from the data properties of each descriptor
-		this.dataMap = data => Object.keys(dataDescription).reduce((acc, key) => ({
-			...acc, [key]: dataDescription[key].data(data)
-		}), {})
+		this.dataMap = data => Object.keys(dataDescription)
+			.filter(key => dataDescription[key].data)
+			.reduce((acc, key) => ({
+				...acc, [key]: dataDescription[key].data(data)
+			}), {})
 
 		// Store the mutations for each descriptor
 		this.mutations = Object.keys(dataDescription).reduce((acc, key) => {
@@ -102,14 +110,15 @@ class Model {
 	 * 
 	 * @param {String} name 
 	 * @param {Schema|Schema[]} schema
+	 * @param {Boolean} required
 	 * @returns {Model}
 	 * 
 	 * @memberOf Model
 	 */
-	addSource(name, schema) {
+	addSource(name, schema, required = true) {
 		const many = Array.isArray(schema)
 
-		this.sources.push({ name, schema: many ? schema[0] : schema, many })
+		this.sources.push({ name, schema: many ? schema[0] : schema, many, required })
 		return this
 	}
 
@@ -274,6 +283,11 @@ class Model {
 			const source = this._getSource(item.source)
 			const select = item.select(rawData)
 			const sourceData = await this._readFromSchema(source.schema, select, source.many)
+			
+			if (!sourceData && source.required) {
+				return new Document(this, undefined, inputData, queryName, undefined)
+			}
+
 			rawData = { ...rawData, [source.name]: sourceData }
 		}
 		
@@ -282,7 +296,11 @@ class Model {
 				return new Document(this, this.dataMap(item), inputData, queryName, item)
 			})
 		} else {
-			return new Document(this, this.dataMap(rawData), inputData, queryName, rawData)
+			try {
+				return new Document(this, this.dataMap(rawData), inputData, queryName, rawData)
+			} catch (e) {
+				throw new Error('Failed to create document')
+			}
 		}
 	}
 
@@ -312,7 +330,10 @@ class Model {
 	async mutate(queryInput, queryName, data, docData) {
 		const query = this._getQuery(queryName || 'default')
 		const inputData = query.inputs.toSource(queryInput)
-		const dataWithDefaults = { ...this.defaults, ...data }
+		const filteredData = Object.keys(data)
+			.filter(key => this.dataDescription && key in this.dataDescription && this.dataDescription[key].modify)
+			.reduce((acc, key) => ({ ...acc, [key]: data[key] }), {})
+		const dataWithDefaults = { ...this.defaults, ...filteredData }
 		const validatorResult = validator.validate(this.mutationSchema, dataWithDefaults)
 		
 		if (!validatorResult.valid) {
@@ -329,7 +350,7 @@ class Model {
 			.reduce((acc, item) => {
 				const source = item.source
 				const operation = item.operation || 'update'
-				const itemData = item.data(data[item.property], docData)
+				const itemData = item.data(dataWithDefaults[item.property], docData)
 
 				if (source in acc) {
 					return {
@@ -381,6 +402,14 @@ class Model {
 		const query = this._getQuery(queryName || 'default')
 		const mutation = this._getMutation(name)
 		const inputData = query.inputs.toSource(queryInput)
+
+		// If attempting to mutate a non-modifiable property, return an error
+		if (this.dataDescription && name in this.dataDescription && !this.dataDescription[name].modify) {
+			return [
+				undefined,
+				{ err: new Error(`Property '${name}' cannot be modified`) }
+			]
+		}
 
 		const validatorResult = validator.validate(mutation.type, data)
 
