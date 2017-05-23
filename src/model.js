@@ -547,7 +547,7 @@ class Model {
 		
 		mappedData = this.dataMap(rawData)
 
-		return [ new Document(this, mappedData, query.inputs.fromSource(rawData), rawData) ]
+		return [ new Document(this, mappedData, query.inputs.fromSource(rawData), 'default', rawData) ]
 	}
 
 	async _execMutation(source, operation, data, selector) {

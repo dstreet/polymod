@@ -12,6 +12,7 @@
   "author": "David Street",
   "license": "MIT",
   "dependencies": {
+    "debug": "^2.6.8",
     "schema-inspector": "^1.6.8",
     "sift": "^3.2.7",
     "uuid": "^3.0.1",
