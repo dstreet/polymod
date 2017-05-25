@@ -4,5 +4,5 @@ module.exports = {
 	Query: require('./src/query'),
 	Schema: require('./src/schema'),
 	MemStore: require('./src/mem-store'),
-	ModelSchema: require('./model-schema')
+	ModelSchema: require('./src/model-schema')
 }
