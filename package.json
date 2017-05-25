@@ -1,6 +1,6 @@
 {
   "name": "polymod",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "A library for composing data models from any number of sources.",
   "main": "dist/index.js",
   "scripts": {
