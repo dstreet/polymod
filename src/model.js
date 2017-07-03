@@ -152,6 +152,8 @@ class Model {
 
 		this.sourceMap = sourceData => {
 			return Object.keys(data).reduce((acc, key) => {
+				if (typeof data[key].data !== 'function') return acc
+				
 				return {
 					...acc,
 					[key]: data[key].data(sourceData)

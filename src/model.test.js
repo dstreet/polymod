@@ -1352,3 +1352,65 @@ async () => {
 		tags: [{ title: 'foo' }]
 	})
 })
+
+test(`
+Write-only properties
+---
+Properties with no data function should not be returned with the document data
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addQuery('default', query)
+		.describe({
+			id: {},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			}
+		})
+
+	let res = await model.get(1)
+	
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		title: 'Post 1',
+		content: 'This is the first post',
+	})
+	expect(res.data.id).toBeUndefined()
+})
