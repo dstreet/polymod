@@ -2,6 +2,10 @@ const Document = require('./document')
 const validator = require('./validator')
 
 class Model {
+	static create() {
+		return new Model()
+	}
+
 	constructor() {
 		this._sources = {}
 		this._queries = {}
