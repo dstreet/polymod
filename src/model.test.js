@@ -1204,3 +1204,151 @@ async () => {
 
 	expect(error.err).toBeInstanceOf(Error)
 })
+
+test(`
+Default values
+---
+When creating a new document, default values defined in the data structure
+should be used when not explictly set
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.addMutation('title', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.addMutation('content', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { content: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.setInitializer([
+			{
+				source: 'post',
+				operations: input => ([
+					{
+						name: 'create',
+						data: input
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title,
+				default: () => 'New Post'
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+				default: () => 1
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
+		})
+
+	let [ res ] = await model.create({
+		id: 2,
+		content: 'Hey. Look at me!',
+		tags: [1]
+	})
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		id: 2,
+		title: 'New Post',
+		content: 'Hey. Look at me!',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		tags: [{ title: 'foo' }]
+	})
+})

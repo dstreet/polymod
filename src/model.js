@@ -67,6 +67,7 @@ class Model {
 						type: data[key].type,
 						required: data[key].required
 					},
+					default: data[key].default,
 					schema: validator.parseType(data[key].type, data[key].required)
 				}
 			}
@@ -169,13 +170,15 @@ class Model {
 			]
 		}
 
+		let dataWithDefaults = this.applyDefaults(data)
+
 		// Type defined by the initializer should override the data descriptor types
 		const inputSchema = validator.parseType({
 			...reduceWithObject(this._dataDescriptor, val => val.schema),
 			...reduceWithObject(this._initializer.type, val => validator.parseType(val))
 		})
 
-		const validatorResult = validator.validate(inputSchema, data)
+		const validatorResult = validator.validate(inputSchema, dataWithDefaults)
 
 		if (!validatorResult.valid) {
 			return [
@@ -184,7 +187,7 @@ class Model {
 			]
 		}
 
-		const [ doc ] = await Document.createFromInitializer(this, this._initializer, data)
+		const [ doc ] = await Document.createFromInitializer(this, this._initializer, dataWithDefaults)
 		return [ doc ]
 	}
 
@@ -207,6 +210,21 @@ class Model {
 		}
 		
 		return results
+	}
+
+	applyDefaults(data) {
+		return this._dataDescriptor ?
+			{
+				...Object.keys(this._dataDescriptor).reduce((acc, key) => {
+					if (!this._dataDescriptor[key].default) return acc
+					return {
+						...acc,
+						[key]: this._dataDescriptor[key].default(data)
+					}
+				}, {}),
+				...data
+			} :
+			data
 	}
 }
 

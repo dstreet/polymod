@@ -685,3 +685,158 @@ async () => {
 
 	expect(error2.err).toBeInstanceOf(Error)
 })
+
+test(`
+Apply defaults on mutate
+---
+When mutating document, default values defined in the data structure should be
+used when not explictly set
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const now = new Date()
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.addMutation('title', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.addMutation('dateUpdated', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { dateUpdated: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				})
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			},
+			dateUpdated: {
+				data: ({ post }) => post.dateUpdated,
+				default: () => now
+			}
+		})
+
+	let res = await model.get(1)
+
+	let [ doc ] = await res.mutate('title', 'Updated post')
+
+	expect(doc).toBeInstanceOf(Document)
+	expect(doc.data).toEqual({
+		id: 1,
+		title: 'Updated post',
+		content: 'This is the first post',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		dateUpdated: now,
+		tags: [{ title: 'foo' }]
+	})
+})

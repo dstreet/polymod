@@ -101,10 +101,16 @@ class Document {
 			throw new Error('Attempting to mutate a removed document')
 		}
 
-		if (args.length === 1) {
-			return this._multiMutate(args[0])
+		if (args.length > 1) {
+			const dataWithDefault = this.model.applyDefaults({ [args[0]]: args[1] })
+			
+			if (Object.keys(dataWithDefault).length > 1) {
+				return this._multiMutate(dataWithDefault)	
+			} else {
+				return this._singleMutate(args[0], dataWithDefault[args[0]])
+			}
 		} else {
-			return this._singleMutate(args[0], args[1])
+			return this._multiMutate(this.model.applyDefaults(args[0]))
 		}
 	}
 
@@ -208,7 +214,14 @@ class Document {
 	 * @private
 	 */
 	async _singleMutate(name, data) {
-		const mutationStructure = this.model.getMutation(name)
+		let mutationStructure
+
+		try {
+			mutationStructure = this.model.getMutation(name)
+		} catch (err) {
+			throw new Error(`Could not load mutation, "${name}"`)
+		}
+
 		const nodes = this.query.getSortedNodes()
 		const resultData = { ...this._queryResult.data }
 		const newQuery = this.query.copy()
