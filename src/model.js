@@ -2,10 +2,21 @@ const Document = require('./document')
 const validator = require('./validator')
 
 class Model {
+	/**
+	 * Create a new model instance
+	 * 
+	 * @static
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	static create() {
 		return new Model()
 	}
 
+	/**
+	 * Creates an instance of Model
+	 * @memberof Model
+	 */
 	constructor() {
 		this._sources = {}
 		this._queries = {}
@@ -16,38 +27,100 @@ class Model {
 		this.sourceMap = sources => sources
 	}
 
+	/**
+	 * Add a new model source
+	 * 
+	 * @param {String} name 
+	 * @param {Object} source 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	addSource(name, source) {
 		this._sources[name] = source
 		return this
 	}
 
+	/**
+	 * Get a source by name
+	 * 
+	 * @param {String} name 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	getSource(name) {
 		return this._sources[name]
 	}
 
+	/**
+	 * Register a query with the model
+	 * 
+	 * @param {String} name 
+	 * @param {Query} query 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	addQuery(name, query) {
 		this._queries[name] = query
 		return this
 	}
 
+	/**
+	 * Get a query by name
+	 * 
+	 * @param {String} name 
+	 * @returns {Query}
+	 * @memberof Model
+	 */
 	getQuery(name) {
 		return this._queries[name]
 	}
 
+	/**
+	 * Register a mutation with the model
+	 * 
+	 * @param {String} name 
+	 * @param {Object} mutation 
+	 * @param {any} type 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	addMutation(name, mutation, type) {
 		this._mutations[name] = { sources: mutation, type }
 		return this
 	}
 
+	/**
+	 * Get a mutation by name
+	 * 
+	 * @param {String} name 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	getMutation(name) {
 		return this._mutations[name].sources
 	}
 
+	/**
+	 * Set the initializer for creating a new document
+	 * 
+	 * @param {String} mutation 
+	 * @param {string} [queryName='default'] 
+	 * @param {any} type 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	setInitializer(mutation, queryName = 'default', type) {
 		this._initializer = { mutation, type, query: this._queries[queryName] }
 		return this
 	}
 
+	/**
+	 * Set the mutation to use when removing a document
+	 * 
+	 * @param {Object} mutation 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	setRemove(mutation) {
 		this.destructor = { mutation }
 		return this
@@ -89,6 +162,14 @@ class Model {
 		return this
 	}
 
+	/**
+	 * Execute a query by name
+	 * 
+	 * @param {String} name 
+	 * @param {any} input 
+	 * @returns {Document|[Document]}
+	 * @memberof Model
+	 */
 	async query(name, input) {
 		const query = this._queries[name]
 		const result = await query.exec(this, input)
@@ -121,10 +202,24 @@ class Model {
 		return new Document(this, query, result)
 	}
 
+	/**
+	 * Execute the default query
+	 * 
+	 * @param {any} input 
+	 * @returns {Document|[Document]}
+	 * @memberof Model
+	 */
 	get(input) {
 		return this.query('default', input)
 	}
 
+	/**
+	 * Get the data schema used by mutations for an object
+	 * 
+	 * @param {any} obj 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	getMutationSchemaForObject(obj) {
 		const mutationSchema = validator.parseType(
 			Object.keys(obj).reduce((acc, key) => {
@@ -138,6 +233,13 @@ class Model {
 		return mutationSchema
 	}
 
+	/**
+	 * Get the mutation schema
+	 * 
+	 * @param {String} mutation 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	getMutationSchema(mutation) {
 		let mutationSchema
 
@@ -154,6 +256,14 @@ class Model {
 		return mutationSchema
 	}
 
+	/**
+	 * Validate the data for a given mutation
+	 * 
+	 * @param {String} mutation 
+	 * @param {any} [data=mutation] 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	validateMutation(mutation, data = mutation) {
 		let mutationSchema
 		
@@ -166,6 +276,13 @@ class Model {
 		return validator.validate(mutationSchema, data)
 	}
 
+	/**
+	 * Create a new document
+	 * 
+	 * @param {any} data 
+	 * @returns {Document}
+	 * @memberof Model
+	 */
 	async create(data) {
 		if (!this._initializer) {
 			return [
@@ -195,10 +312,25 @@ class Model {
 		return [ doc ]
 	}
 
+	/**
+	 * Source interface for fetching document(s)
+	 * 
+	 * @param {String} operation 
+	 * @param {any} selector 
+	 * @returns {Document|Document[s]}
+	 * @memberof Model
+	 */
 	fetch(operation, selector) {
 		return this.query(operation, selector)
 	}
 
+	/**
+	 * Source interface for mutating documents
+	 * 
+	 * @param {String} operations 
+	 * @returns {Document|Document[s]}
+	 * @memberof Model
+	 */
 	async mutate(operations) {
 		const results = []
 
@@ -216,6 +348,13 @@ class Model {
 		return results
 	}
 
+	/**
+	 * Apply the data defaults to a data object
+	 * 
+	 * @param {Object} data 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
 	applyDefaults(data) {
 		return this._dataDescriptor ?
 			{
