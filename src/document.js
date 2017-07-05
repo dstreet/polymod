@@ -161,12 +161,14 @@ class Document {
 	 */
 	async _multiMutate(dataMap) {
 		const mutationStructure = this._getMutationStructureFromDataMap(dataMap)
-		const resultData = { ...this._queryResult.data }
+		let resultData = { ...this._queryResult.data }
 		const nodes = this.query.getSortedNodes()
 		const newQuery = this.query.copy()
 		const selectors = this._queryResult.selectors
+		const middleware = this.model.getMutationMiddleware()
+		let _dataMap = dataMap
 
-		const validationResult = this.model.validateMutation(dataMap)
+		const validationResult = this.model.validateMutation(_dataMap)
 
 		if (!validationResult.valid) {
 			return [
@@ -175,12 +177,16 @@ class Document {
 			]
 		}
 
+		if (middleware && typeof middleware.pre === 'function') {
+			[ _dataMap, resultData ] = await middleware.pre(_dataMap, resultData)
+		}
+
 		for (const node of nodes) {
 			const mutation = mutationStructure.find(m => m.source === node)
 
 			if (mutation) {
 				const source = this.model.getSource(mutation.source)
-				const operations = mutation.operations(dataMap, {
+				const operations = mutation.operations(_dataMap, {
 					input: this._queryResult.input,
 					...this._queryResult.data
 				})
@@ -193,6 +199,10 @@ class Document {
 
 			selectors[node] = this.query.getSourceSelector(node, resultData)
 			resultData[node] = await this.query.fetchSource(this.model, node, resultData)
+		}
+
+		if (middleware && typeof middleware.post === 'function') {
+			[ _dataMap, resultData ] = await middleware.post(_dataMap, resultData)
 		}
 
 		try {
@@ -223,11 +233,13 @@ class Document {
 		}
 
 		const nodes = this.query.getSortedNodes()
-		const resultData = { ...this._queryResult.data }
+		let resultData = { ...this._queryResult.data }
 		const newQuery = this.query.copy()
 		const selectors = this._queryResult.selectors
+		const middleware = this.model.getMutationMiddleware()
+		let _data = data
 
-		const validationResult = this.model.validateMutation(name, data)
+		const validationResult = this.model.validateMutation(name, _data)
 
 		if (!validationResult.valid) {
 			return [
@@ -236,13 +248,18 @@ class Document {
 			]
 		}
 
+		// Execute the pre middleware
+		if (middleware && typeof middleware.pre === 'function') {
+			[ _data, resultData ] = await middleware.pre(_data, resultData)
+		}
+
 		for (const node of nodes) {
 			const mutation = mutationStructure.find(m => m.source === node)
 			let shouldFetch = false
 
 			if (mutation) {
 				const source = this.model.getSource(mutation.source)
-				const operations = mutation.operations(data, {
+				const operations = mutation.operations(_data, {
 					input: this._queryResult.input,
 					...this._queryResult.data
 				})
@@ -267,6 +284,11 @@ class Document {
 			selectors[node] = this.query.getSourceSelector(node, resultData)
 		}
 
+		// Execute the post middleware
+		if (middleware && typeof middleware.post === 'function') {
+			[ _data, resultData ] = await middleware.post(_data, resultData)
+		}
+
 		try {
 			resultData.input = newQuery.inputConstructor(resultData)
 		} catch (err) {
@@ -289,6 +311,7 @@ class Document {
 		const mutation = Object.keys(dataMap)
 			.reduce((acc, key) => {
 				const mutationSources = this.model.getMutation(key).map(m => ({ ...m, prop: key }))
+				
 				return acc.concat(mutationSources)
 			}, [])
 			.reduce((acc, mutation) => {
@@ -309,7 +332,7 @@ class Document {
 							operations: [{
 								cb: mutation.operations,
 								prop: mutation.prop
-							}],
+							}]
 						}
 					}
 				}

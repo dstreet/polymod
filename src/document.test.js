@@ -840,3 +840,252 @@ async () => {
 		tags: [{ title: 'foo' }]
 	})
 })
+
+test(`
+Mutation middleware
+---
+When performing a mutation, any pre and post middlware should be performed
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+
+	const query = new Query()
+	query
+		.addPopulation({
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		})
+		.setInputConstructor(({ post }) => post.id)
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addQuery('default', query)
+		.addMutation('updateTitle', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				result: ([ post ]) => post
+			}
+		])
+		.addMutationMiddleware(
+			(input, sources) => {
+				return [ input, {
+					...sources,
+					timer: {
+						start: (new Date()).getTime()
+					}
+				} ]
+			},
+			(input, sources) => {
+				const end = (new Date()).getTime()
+				return [ input, {
+					...sources,
+					timer: {
+						start: sources.timer.start,
+						end,
+						duration: end - sources.timer.start
+					}
+				} ]
+			}
+		)
+
+	let res = await model.get(1)
+	expect(res).toBeInstanceOf(Document)
+	
+	let [ doc ] = await res.mutate('updateTitle', 'testing mutation')
+	expect(doc.data).toHaveProperty('timer.start')
+	expect(doc.data).toHaveProperty('timer.end')
+	expect(doc.data).toHaveProperty('timer.duration')
+})
+
+test(`
+Multiple mutations middleware
+---
+When performing a mutation, any pre and post middlware should be performed for
+each of the mutations
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const middlewareCollector = []
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.addMutation('title', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.addMutation('content', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { content: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.addMutationMiddleware(
+			(input, sources) => {
+				middlewareCollector.push('pre')
+				return [ input, sources ]
+			},
+			(input, sources) => {
+				middlewareCollector.push('post')
+				return [ input, sources ]
+			}
+		)
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
+		})
+
+	let res = await model.get(1)
+
+	let [ doc ] = await res.mutate({
+		title: 'Testing',
+		content: 'This is only a test'
+	})
+	expect(doc).toBeInstanceOf(Document)
+	expect(doc.data).toEqual({
+		id: 1,
+		title: 'Testing',
+		content: 'This is only a test',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		tags: [
+			{ title: 'foo' }
+		]
+	})
+	expect(middlewareCollector).toEqual([ 'pre', 'post' ])
+})

@@ -84,8 +84,8 @@ class Model {
 	 * @returns {Model}
 	 * @memberof Model
 	 */
-	addMutation(name, mutation, type) {
-		this._mutations[name] = { sources: mutation, type }
+	addMutation(name, mutation, type, pre, post) {
+		this._mutations[name] = { sources: mutation, type, middleware: { pre, post } }
 		return this
 	}
 
@@ -98,6 +98,29 @@ class Model {
 	 */
 	getMutation(name) {
 		return this._mutations[name].sources
+	}
+
+	/**
+	 * Add mutation middleware functions
+	 * 
+	 * @param {[Function]} pre 
+	 * @param {[Function]} post 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
+	addMutationMiddleware(pre, post) {
+		this._mutationMiddleware = { pre, post }
+		return this
+	}
+
+	/**
+	 * Get the mutation middleware functions
+	 * 
+	 * @returns {Object}
+	 * @memberof Model
+	 */
+	getMutationMiddleware() {
+		return this._mutationMiddleware
 	}
 
 	/**
