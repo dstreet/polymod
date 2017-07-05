@@ -126,6 +126,13 @@ class Model {
 		return this
 	}
 
+	/**
+	 * Get or set the data descriptors
+	 * 
+	 * @param {[Object]} data 
+	 * @returns {Model}
+	 * @memberof Model
+	 */
 	describe(data) {
 		if (!data) {
 			return Object.keys(this._dataDescriptor).reduce((acc, key) => {
