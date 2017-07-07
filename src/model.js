@@ -127,12 +127,12 @@ class Model {
 	 * Set the initializer for creating a new document
 	 * 
 	 * @param {String} mutation 
+	 * @param {any} type
 	 * @param {string} [queryName='default'] 
-	 * @param {any} type 
 	 * @returns {Model}
 	 * @memberof Model
 	 */
-	setInitializer(mutation, queryName = 'default', type) {
+	setInitializer(mutation, type, queryName = 'default') {
 		this._initializer = { mutation, type, query: this._queries[queryName] }
 		return this
 	}

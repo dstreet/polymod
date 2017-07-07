@@ -1161,7 +1161,7 @@ async () => {
 				]),
 				results: ([ post ]) => post
 			}
-		], 'default', {
+		], {
 			author: Number,
 			tags: [Number]
 		})
