@@ -102,13 +102,7 @@ class Document {
 		}
 
 		if (args.length > 1) {
-			const dataWithDefault = this.model.applyDefaults({ [args[0]]: args[1] })
-			
-			if (Object.keys(dataWithDefault).length > 1) {
-				return this._multiMutate(dataWithDefault)	
-			} else {
-				return this._singleMutate(args[0], dataWithDefault[args[0]])
-			}
+			return this._singleMutate(args[0], args[1])
 		} else {
 			return this._multiMutate(this.model.applyDefaults(args[0]))
 		}

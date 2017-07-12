@@ -825,7 +825,7 @@ async () => {
 
 	let res = await model.get(1)
 
-	let [ doc ] = await res.mutate('title', 'Updated post')
+	let [ doc ] = await res.mutate({ title: 'Updated post'})
 
 	expect(doc).toBeInstanceOf(Document)
 	expect(doc.data).toEqual({
