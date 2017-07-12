@@ -64,7 +64,7 @@ class Document {
 		this.model = model
 		this._queryResult = queryResult
 		this.query = query
-		this._data = model.sourceMap(queryResult.data)
+		this._data = queryResult.data ? model.sourceMap(queryResult.data) : null
 		this._removed = false
 	}
 
@@ -75,7 +75,7 @@ class Document {
 	 * @memberof Document
 	 */
 	get data() {
-		return { ...this._data }
+		return this._data ? { ...this._data } : null
 	}
 
 	/**

@@ -19,6 +19,7 @@ class Model {
 	 */
 	constructor() {
 		this._sources = {}
+		this._requiredSources = []
 		this._queries = {}
 		this._mutations = {}
 		this._sourceGraph = undefined
@@ -27,16 +28,26 @@ class Model {
 		this.sourceMap = sources => sources
 	}
 
+	get queries() {
+		return Object.keys(this._queries)
+	}
+
 	/**
 	 * Add a new model source
 	 * 
 	 * @param {String} name 
-	 * @param {Object} source 
+	 * @param {Object} source
+	 * @param {Boolean} required
 	 * @returns {Model}
 	 * @memberof Model
 	 */
-	addSource(name, source) {
+	addSource(name, source, required) {
 		this._sources[name] = source
+
+		if (required) {
+			this._requiredSources.push(name)
+		}
+		
 		return this
 	}
 
@@ -49,6 +60,10 @@ class Model {
 	 */
 	getSource(name) {
 		return this._sources[name]
+	}
+
+	isSourceRequired(name) {
+		return this._requiredSources.indexOf(name) + 1
 	}
 
 	/**
@@ -146,6 +161,11 @@ class Model {
 	 */
 	setRemove(mutation) {
 		this.destructor = { mutation }
+		return this
+	}
+
+	map(cb) {
+		this.sourceMap = cb
 		return this
 	}
 
@@ -391,7 +411,7 @@ class Model {
 		return this._dataDescriptor ?
 			{
 				...Object.keys(this._dataDescriptor).reduce((acc, key) => {
-					if (!this._dataDescriptor[key].default) return acc
+					if (typeof this._dataDescriptor[key].default !== 'function') return acc
 					return {
 						...acc,
 						[key]: this._dataDescriptor[key].default(data)

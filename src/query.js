@@ -10,7 +10,7 @@ class QueryResult {
 	}
 
 	get data() {
-		return { ...this._data }
+		return this._data ? { ...this._data } : null
 	}
 
 	get selectors() {
@@ -197,7 +197,7 @@ class Query {
 	 * @memberof Query
 	 */
 	async exec(model, input) {
-		const { selectors, data} = await this._fetchSourceData(model, { input })
+		const { selectors, data } = await this._fetchSourceData(model, { input })
 
 		return new QueryResult(input, selectors, data)
 	}
@@ -263,6 +263,9 @@ class Query {
 
 			selectors[v] = selector
 			data[v] = await this._doFetch(source, node.operation, selector)
+			if (!data[v] && model.isSourceRequired(v)) {
+				return { selectors, data: null }
+			}
 		}
 
 		return { selectors, data }
