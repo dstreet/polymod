@@ -6,7 +6,7 @@ module.exports = {
 		filename: 'index.js',
 		path: path.resolve(__dirname, 'dist'),
 		library: 'polymod',
-		libraryTarget: 'umd'
+		libraryTarget: 'commonjs2'
 	},
 	module: {
 		rules: [
