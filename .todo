@@ -1,0 +1,7 @@
+☐ Add a transform method to query populations that transform query results. This is especially helpful when working with a model as a source
+☐ Throw error when trying to apply a mutation that doesn't exist
+☐ Allow population aliases within a query
+☐ Add better debugging with populations selectors
+☐ Change population property, 'name', to 'source'
+☐ Throw error if population source does not exist
+✔ Allow an empty document to be returned when a population returns nothing @done (7/12/2017, 1:05:53 PM)

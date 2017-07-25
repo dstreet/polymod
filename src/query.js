@@ -130,6 +130,8 @@ class Query {
 	 * @memberof Query
 	 */
 	getSourceSelector(source, data) {
+		if (typeof this._sourceGraph.node(source).selector !== 'function') return null
+		
 		return this._sourceGraph.node(source).selector(data)
 	}
 
@@ -161,6 +163,9 @@ class Query {
 	fetchSource(model, sourceName, data) {
 		const source = model.getSource(sourceName)
 		const node = this.sourceGraph.node(sourceName)
+
+		if (!node.operation) return
+
 		return this._doFetch(source, node.operation, node.selector(data))
 	}
 
@@ -257,7 +262,11 @@ class Query {
 		const selectors = {}
 
 		for (const v of nodes) {
+			
 			const node = this.sourceGraph.node(v)
+
+			if (!node.operation) continue
+
 			const source = model.getSource(v)
 			const selector = node.selector(data)
 
