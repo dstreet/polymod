@@ -244,7 +244,7 @@ class Document {
 
 		// Execute the pre middleware
 		if (middleware && typeof middleware.pre === 'function') {
-			[ _data, resultData ] = await middleware.pre(_data, resultData)
+			[ _data, resultData ] = await middleware.pre(_data, resultData, name)
 		}
 
 		for (const node of nodes) {
@@ -255,7 +255,7 @@ class Document {
 				const source = this.model.getSource(mutation.source)
 				const operations = mutation.operations(_data, {
 					input: this._queryResult.input,
-					...this._queryResult.data
+					...resultData
 				})
 
 				const mutationResults = await source.mutate(operations)
@@ -280,7 +280,7 @@ class Document {
 
 		// Execute the post middleware
 		if (middleware && typeof middleware.post === 'function') {
-			[ _data, resultData ] = await middleware.post(_data, resultData)
+			[ _data, resultData ] = await middleware.post(_data, resultData, name)
 		}
 
 		try {
