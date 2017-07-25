@@ -93,7 +93,7 @@ test('`update()` should update the matching documents with the provided data', a
 	})
 
 	const updatedDocs = await store.update('posts', { author: 'jsmith' }, { title: 'updated post' })
-
+	
 	expect(updatedDocs).toHaveLength(1)
 	expect(updatedDocs[0]).toEqual({
 		id: 3,
@@ -140,5 +140,26 @@ test('`del()` should delete the matching documents', async () => {
 		id: 2,
 		title: 'post 2',
 		author: 'jdoe'
+	})
+})
+
+test('update() $push should append values to property arrays', async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'post 1',
+				author: 'jdoe',
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const updatedDocs = await store.update('posts', { id: 1 }, { $push: { tags: 3 }})
+	expect(updatedDocs[0]).toEqual({
+		id: 1,
+		title: 'post 1',
+		author: 'jdoe',
+		tags: [1, 2, 3]
 	})
 })
