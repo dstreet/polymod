@@ -163,3 +163,23 @@ test('update() $push should append values to property arrays', async () => {
 		tags: [1, 2, 3]
 	})
 })
+
+test('update() $push should create a new array if field is undefined', async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'post 1',
+				author: 'jdoe'
+			}
+		]
+	})
+
+	const updatedDocs = await store.update('posts', { id: 1 }, { $push: { tags: 3 }})
+	expect(updatedDocs[0]).toEqual({
+		id: 1,
+		title: 'post 1',
+		author: 'jdoe',
+		tags: [3]
+	})
+})

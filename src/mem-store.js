@@ -51,7 +51,7 @@ class MemStore {
 					if (key === '$push') {
 						return Object.keys(data.$push).reduce((pAcc, pKey) => ({
 							...pAcc,
-							[pKey]: pAcc[pKey].concat(data.$push[pKey])
+							[pKey]: Array.isArray(pAcc[pKey]) ? pAcc[pKey].concat(data.$push[pKey]) : [data.$push[pKey]]
 						}), { ...acc })
 					} else {
 						return {
