@@ -1,1837 +1,1416 @@
 /* eslint-env jest */
+const { Query } = require('./query')
 const Model = require('./model')
-const Schema = require('./schema')
 const Document = require('./document')
-const Query = require('./query')
 const MemStore = require('../src/mem-store')
+const Source = require('./mem-source')
 
-const now = new Date()
-
-describe('single source', async () => {
-	test('get()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
+test(`
+Get from single source
+---
+When a single source is provided, the 'get' method should return a document with the
+data retrieved from the source using the 'default' query.
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
 	})
 
-	test('mutate() - unnamed', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
+	const Posts = new Source(store, 'posts')
+
+	const query = new Query()
+	query
+		.addPopulation({
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
 		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+		.setInputConstructor(({ post }) => post.id)
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: [{ source: 'post', data: content => ({ content }) }]
-					}
-				},
-				date: {
-					type: { created: Date },
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addQuery('default', query)
 
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+	let res = await model.get(1)
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		post: {
+			id: 1,
 			title: 'Post 1',
 			content: 'This is the first post',
-			date: { created: now }
-		})
+			author: 1,
+			tags: [1]
+		},
+		input: 1
+	})
+})
 
-		let [ document ] = await doc.mutate({
-			title: 'Updated Title',
-			content: 'This is the first post'
-		})
-		
-		expect(document instanceof Document).toBeTruthy()
-		expect(document.data).toEqual({
-			title: 'Updated Title',
-			content: 'This is the first post',
-			date: { created: now }
-		})
+test(`
+Get from multiple sources
+---
+When multiple sources are provided, the 'get' method should return a document
+with the data retrieved from the sources using the 'default' query.
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
 	})
 
-	test('mutate() - named', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
-			.addMutation('updateTitle', [
-				{ source: 'post', data: title => ({ title }) }
-			])
-			.addMutation('updateAll', [
-				{ source: 'post', data: data => ({ title: data.title, content: data.content, dateCreated: data.date.created }) }
-			])
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
 
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+
+	let res = await model.get(1)
+	
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		post: {
+			id: 1,
 			title: 'Post 1',
 			content: 'This is the first post',
-			date: { created: now }
-		})
-
-		let [ doc1 ] = await doc.mutate('updateTitle', 'Updated Title')
-		expect(doc1 instanceof Document).toBeTruthy()
-		expect(doc1.data).toEqual({
-			title: 'Updated Title',
-			content: 'This is the first post',
-			date: { created: now }
-		})
-
-		const now2 = new Date()
-		let [ doc2 ] = await doc1.mutate('updateAll', {
-			title: 'Updated Again',
-			content: 'Look at me!',
-			date: { created: now2 }
-		})
-		expect(doc2 instanceof Document).toBeTruthy()
-		expect(doc2.data).toEqual({
-			title: 'Updated Again',
-			content: 'Look at me!',
-			date: { created: now2 }
-		})
+			author: 1,
+			tags: [1]
+		},
+		author: {
+			id: 1,
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' },
+		},
+		tags: [{
+			id: 1,
+			title: 'foo'
+		}],
+		input: 1
 	})
 
-	test('del()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
+	res = await model.query('default', 2)
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		post: {
+			id: 2,
+			title: 'Post 2',
+			content: 'This is the second post',
+			author: 1,
+			tags: [1, 2]
+		},
+		author: {
+			id: 1,
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' },
+		},
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		input: 2
+	})
+
+})
+
+test(`
+Describe data structure
+---
+When calling 'describe' with an object, the source data will be mapped to each
+of the object properties using their 'data' functions.
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
 		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
-			.bindSources(['post'])
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
+	let res = await model.get(1)
+	
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		id: 1,
+		title: 'Post 1',
+		content: 'This is the first post',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		tags: [
+			{ title: 'foo' }
+		]
+	})
 
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
+})
 
-		let deleted = await Post.del(1)
-		expect(deleted).toEqual([
+test(`
+Creating a document
+---
+When 'create' is called, a new Document is created with the initial data.
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.addMutation('title', [
 			{
 				source: 'post',
-				deleted: [{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}]
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				results: ([ post ]) => post
 			}
 		])
+		.addMutation('content', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { content: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.setInitializer([
+			{
+				source: 'post',
+				operations: input => ([
+					{
+						name: 'create',
+						data: input
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
+		})
+
+	let [ res ] = await model.create({
+		id: 2,
+		title: 'This is a new post',
+		content: 'Hey. Look at me!',
+		author: 1,
+		tags: [1]
 	})
 
-	test('create()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		id: 2,
+		title: 'This is a new post',
+		content: 'Hey. Look at me!',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		tags: [{ title: 'foo' }]
+	})
+})
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: { source: 'post', data: content => ({ content }) }
-					}
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					}),
-					mutation: {
-						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
-					},
-					default: () => ({ created: now })
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}), ({ post }) => post.id)
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
+test(`
+Model as source
+---
+A model can use another model as a source
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+	})
 
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
+	const Posts = new Source(store, 'posts')
+	const Tags = new Source(store, 'tags')
+
+	const TagModel = new Model()
+	TagModel
+		.addSource('tag', Tags)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'tag',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.setInputConstructor(({ tag }) => tag.id)
+		)
+
+	const PostModel = new Model()
+	PostModel
+		.addSource('post', Posts)
+		.addSource('tags', TagModel)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'post',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.addPopulation({
+					name: 'tags',
+					operation: 'default',
+					selector: ({ post }) => post.tags.map(id => id)
+				})
+				.setInputConstructor(({ post }) => post.id)
+		)
+
+	let res = await PostModel.get(1)
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toHaveProperty('post', {
+		id: 1,
+		title: 'Post 1',
+		content: 'This is the first post',
+		author: 1,
+		tags: [1]
+	})
+	expect(res.data.tags).toHaveLength(1)
+	expect(res.data.tags[0]).toBeInstanceOf(Document)
+	expect(res.data.tags[0].data).toEqual({
+		tag: {
+			id: 1,
+			title: 'foo'
+		},
+		input: 1
+	})
+})
+
+test(`
+Mutating model source
+---
+When using a model as a source, mutations should carry through to that model
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		],
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+
+	const UserModel = new Model()
+	UserModel
+		.addSource('user', Users)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'user',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.setInputConstructor(({ user }) => user.id)
+		)
+		.addMutation('updateUsername', [
+			{
+				source: 'user',
+				operations: (input, { user }) => ([
+					{
+						name: 'update',
+						selector: { id: user.id },
+						data: { username: input }
+					}
+				]),
+				result: ([ user ]) => user
+			}
+		])
+
+	const PostModel = new Model()
+	PostModel
+		.addSource('post', Posts)
+		.addSource('author', UserModel)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'post',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.addPopulation({
+					name: 'author',
+					operation: 'default',
+					selector: ({ post }) => post.author
+				})
+				.setInputConstructor(({ post }) => post.id)
+		)
+		.addMutation('updateAuthorUsername', [
+			{
+				source: 'author',
+				operations: (input, { author }) => ([
+					{
+						name: 'updateUsername',
+						selector: author,
+						data: input
+					}
+				]),
+				result: ([ author ]) => author
+			}
+		])
+
+	let res = await PostModel.get(1)
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toHaveProperty('post', {
+		id: 1,
+		title: 'Post 1',
+		content: 'This is the first post',
+		author: 1,
+		tags: [1]
+	})
+	expect(res.data.author).toBeInstanceOf(Document)
+	expect(res.data.author.data).toEqual({
+		user: {
+			id: 1,
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' },
+		},
+		input: 1
+	})
+
+	let [ doc ] = await res.mutate('updateAuthorUsername', 'foobar')
+
+	expect(doc).toBeInstanceOf(Document)
+	expect(doc.data).toHaveProperty('post', {
+		id: 1,
+		title: 'Post 1',
+		content: 'This is the first post',
+		author: 1,
+		tags: [1]
+	})
+	expect(doc.data.author).toBeInstanceOf(Document)
+	expect(doc.data.author.data).toEqual({
+		user: {
+			id: 1,
+			username: 'foobar',
+			name: { first: 'John', last: 'Doe' },
+		},
+		input: 1
+	})
+
+	doc = await UserModel.get(1)
+	expect(doc.data).toEqual({
+		user: {
+			id: 1,
+			username: 'foobar',
+			name: { first: 'John', last: 'Doe' },
+		},
+		input: 1
+	})
+})
+
+test(`
+Creating a document with a model source
+---
+When creating a new document, an affected model source should call
+its initializer
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+			}
+		],
+		tagLinks: [
+			{ id: 1, post: 1, tags: [1, 2] }
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const TagLinks = new Source(store, 'tagLinks')
+
+	const TagLinkModel = new Model()
+	TagLinkModel
+		.addSource('link', TagLinks)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'link',
+					operation: 'read',
+					selector: ({ input }) => ({ post: input })
+				})
+				.setInputConstructor(({ link }) => link.post)
+		)
+		.setInitializer([
+			{
+				source: 'link',
+				operations: input => ([
+					{
+						name: 'create',
+						data: input
+					}
+				]),
+				results: ([ link ]) => link
+			}
+		])
+
+	const PostModel = new Model()
+	PostModel
+		.addSource('post', Posts)
+		.addSource('tagLink', TagLinkModel)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'post',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.addPopulation({
+					name: 'tagLink',
+					operation: 'default',
+					require: ['post'],
+					selector: ({ post }) => post.id
+				})
+				.setInputConstructor(({ post }) => post.id)
+		)
+		.setInitializer([
+			{
+				source: 'post',
+				operations: ({ id, title, content, author}) => ([
+					{
+						name: 'create',
+						data: { id, title, content, author }
+					}
+				]),
+				results: ([ post ]) => post
+			},
+			{
+				source: 'tagLink',
+				operations: ({ tags }, { post }) => ([
+					{
+						name: 'create',
+						data: { post: post.id, tags }
+					}
+				]),
+				results: ([ link ]) => link
+			}
+		])
+
+	let res = await PostModel.get(1)
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toHaveProperty('post', {
+		id: 1,
+		title: 'Post 1',
+		content: 'This is the first post',
+		author: 1
+	})
+	expect(res.data.tagLink).toBeInstanceOf(Document)
+	expect(res.data.tagLink.data).toEqual({
+		link: { id: 1, post: 1, tags: [1, 2] },
+		input: 1
+	})
+
+	let [ doc ] = await PostModel.create({
+		id: 2,
+		title: 'This is a test',
+		content: 'Woooo',
+		author: 1,
+		tags: [2, 3]
+	})
+
+	expect(doc).toBeInstanceOf(Document)
+	expect(doc.data).toHaveProperty('post', {
+		id: 2,
+		title: 'This is a test',
+		content: 'Woooo',
+		author: 1,
+	})
+	expect(doc.data.tagLink).toBeInstanceOf(Document)
+	expect(doc.data.tagLink.data).toHaveProperty('link.post', 2)
+	expect(doc.data.tagLink.data).toHaveProperty('link.tags', [2, 3])
+	expect(doc.data.tagLink.data).toHaveProperty('input', 2)
+})
+
+test(`
+Query for multiple documents
+---
+When performing a query that returns more than one result, multiple documents
+should be returned
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1
+			},
+			{
+				id: 3,
+				title: 'Post 3',
+				content: 'This is the third post',
+				author: 2
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addQuery('default',
+			(new Query())
+				.addPopulation({
+					name: 'post',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.addPopulation({
+					name: 'author',
+					operation: 'read',
+					require: ['post'],
+					selector: ({ post }) => ({ id: post.author })
+				})
+				.setInputConstructor(({ post }) => post.id)
+		)
+		.addQuery('getByAuthor',
+			(new Query())
+				.addPopulation({
+					name: 'post',
+					operation: 'readMany',
+					selector: ({ input }) => ({ author: input })
+				})
+				.addPopulation({
+					name: 'author',
+					operation: 'read',
+					selector: ({ input }) => ({ id: input })
+				})
+				.mapDocument(({ post, author }) => post.map(p => {
+					return {
+						post: p,
+						author
+					}
+				}))
+		)
+
+	let res = await model.query('getByAuthor', 1)
+	
+	expect(res).toHaveLength(2)
+	expect(res[0]).toBeInstanceOf(Document)
+	expect(res[0].data).toEqual({
+		post: {
+			id: 1,
 			title: 'Post 1',
 			content: 'This is the first post',
-			date: { created: now }
-		})
-		
-		let [ document ] = await Post.create({
-			title: 'New Post',
-			content: 'New post content'
-		})
-		expect(document instanceof Document).toBeTruthy()
-		expect(document.data).toHaveProperty('title', 'New Post')
-		expect(document.data).toHaveProperty('content', 'New post content')
-		expect(document.data).toHaveProperty('date.created', now)
+			author: 1
+		},
+		author: {
+			id: 1,
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' },
+		},
+		input: 1
+	})
+	expect(res[1].data).toEqual({
+		post: {
+			id: 2,
+			title: 'Post 2',
+			content: 'This is the second post',
+			author: 1
+		},
+		author: {
+			id: 1,
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' },
+		},
+		input: 2
 	})
 
-	test('query()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+})
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id } }))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
+test(`
+Describing types
+---
+The document description should allow types to be defined for each property.
+When calling 'describe' with no paramters, this type structure should be returned.
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+			{
+				id: 2,
+				username: 'twaits',
+				name: { first: 'Tom', last: 'Waits' },
+			}
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			},
+			{
+				id: 2,
+				title: 'bar'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
 	})
 
-	test('describe()', async () => {
-		const storage = new MemStore()
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					meta: {
-						label: 'Content',
-						description: 'Post content'
-					},
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
 
-		expect(Post.describe()).toEqual({
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.describe({
+			id: {
+				type: Number,
+				data: ({ post }) => post.id
+			},
 			title: {
 				type: String,
-				mutable: true,
-				modify: true
+				required: true,
+				data: ({ post }) => post.title
 			},
 			content: {
 				type: String,
-				meta: {
-					label: 'Content',
-					description: 'Post content'
-				},
-				mutable: false,
-				modify: true
+				data: ({ post }) => post.content
 			},
-			date: {
-				type: { created: Date },
-				mutable: false,
-				modify: true
-			}
-		})
-	})
-})
-
-describe('multiple sources', async () => {
-	test('get()', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					name: { first: 'John', last: 'Doe' },
-					dateCreated: now
+			author: {
+				type: {
+					username: String,
+					name: { first: String, last: String }
 				},
-				{
-					id: 2,
-					username: 'twaits',
-					name: { first: 'Tom', last: 'Waits' },
-					dateCreated: now
-				}
-			],
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now,
-					author: 1
-				}
-			]
-		})
-
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const UsersSchema = new Schema(storage, 'users', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('author', UsersSchema)
-			.map(({ post, author }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				author: {
+				data: ({ author }) => ({
 					username: author.username,
 					name: author.name
-				}
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('author', ({ post }) => ({ id: post.author }))
-			)
-			
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-	})
-
-	test('mutate()', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					name: { first: 'John', last: 'Doe' },
-					dateCreated: now
-				},
-				{
-					id: 2,
-					username: 'twaits',
-					name: { first: 'Tom', last: 'Waits' },
-					dateCreated: now
-				}
-			],
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now,
-					author: 1
-				}
-			]
-		})
-
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const UsersSchema = new Schema(storage, 'users', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('author', UsersSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: { type: Date }
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				},
-				author: {
-					type: {
-						username: String,
-						name: { first: String, last: String }
-					},
-					data: ({ author }) => ({
-						username: author.username,
-						name: author.name
-					}),
-					mutation: {
-						type: Number,
-						method: { source: 'post', data: id => ({ author: id }) }
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('author', ({ post }) => ({ id: post.author }))
-			)
-			
-		let doc = await Post.get(1)
-		
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-
-		let [ document ] = await doc.mutate({
-			author: 2
-		})
-		
-		expect(document instanceof Document).toBeTruthy()
-		expect(document.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'twaits',
-				name: { first: 'Tom', last: 'Waits' }
-			}
-		})
-	})
-
-	test('del()', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					name: { first: 'John', last: 'Doe' },
-					dateCreated: now
-				},
-				{
-					id: 2,
-					username: 'twaits',
-					name: { first: 'Tom', last: 'Waits' },
-					dateCreated: now
-				}
-			],
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now,
-					author: 1
-				}
-			]
-		})
-
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const UsersSchema = new Schema(storage, 'users', 'id')
-
-		const Post = Model
-			.create()
-			.addBoundSource('post', PostsSchema)
-			.addSource('author', UsersSchema)
-			.map(({ post, author }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				author: {
-					username: author.username,
-					name: author.name
-				}
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('author', ({ post }) => ({ id: post.author }))
-			)
-			
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-
-		const deleted = await doc.del()
-		expect(deleted).toEqual([
-			{
-				source: 'post',
-				deleted: [{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				}]
-			}
-		])
-	})
-
-	test('create()', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					name: { first: 'John', last: 'Doe' },
-					dateCreated: now
-				},
-				{
-					id: 2,
-					username: 'twaits',
-					name: { first: 'Tom', last: 'Waits' },
-					dateCreated: now
-				}
-			],
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now,
-					author: 1
-				}
-			]
-		})
-
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const UsersSchema = new Schema(storage, 'users', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('author', UsersSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: { source: 'post', data: content => ({ content }) }
-					}
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					}),
-					mutation: {
-						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
-					},
-					default: () => ({ created: now })
-				},
-				author: {
-					type: {
-						username: String,
-						name: { first: String, last: String }
-					},
-					data: ({ author }) => ({
-						username: author.username,
-						name: author.name
-					}),
-					mutation: {
-						type: Number,
-						method: { source: 'post', data: id => ({ author: id }) }
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(
-						id => ({ post: { id }}),
-						({ post }) => post.id
-					)
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('author', ({ post }) => ({ id: post.author }))
-			)
-			
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-
-		let [ document ] = await Post.create({
-			title: 'New Post',
-			content: 'New post content',
-			author: 2
-		})
-		expect(document.data).toHaveProperty('title', 'New Post')
-		expect(document.data).toHaveProperty('content', 'New post content')
-		expect(document.data).toHaveProperty('date.created', now)
-		expect(document.data).toHaveProperty('author', {
-			username: 'twaits',
-			name: { first: 'Tom', last: 'Waits' }
-		})
-	})
-
-	test('query()', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					name: { first: 'John', last: 'Doe' },
-					dateCreated: now
-				},
-				{
-					id: 2,
-					username: 'twaits',
-					name: { first: 'Tom', last: 'Waits' },
-					dateCreated: now
-				}
-			],
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now,
-					author: 1
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now,
-					author: 1
-				}
-			]
-		})
-
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const UsersSchema = new Schema(storage, 'users', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('posts', [PostsSchema])
-			.addSource('author', UsersSchema)
-			.map(({ post, author }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				author: {
-					username: author.username,
-					name: author.name
-				}
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('author', ({ post }) => ({ id: post.author }))
-			)
-			.addQuery('byAuthor',
-				Query
-					.create(true)
-					.input(id => ({ author: { id } }))
-					.populate('posts', ({ author }) => ({ author: author.id }))
-					.populate('author', ({ author }) => ({ id: author.id }))
-					.map(({ author, posts }) => posts.map(post => ({ post, author })))
-			)
-			
-		const docs = await Post.query('byAuthor', 1)
-		expect(docs).toHaveLength(2)
-		expect(docs[0].data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-		expect(docs[1].data).toEqual({
-			title: 'Post 2',
-			content: 'This is the second post',
-			date: { created: now },
-			author: {
-				username: 'jdoe',
-				name: { first: 'John', last: 'Doe' }
-			}
-		})
-	})
-})
-
-describe('array source', async () => {
-	test('get()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			],
-			tags: [
-				{ id: 1, title: 'Sevr', dateCreated: now },
-				{ id: 2, title: 'MongoDB', dateCreated: now },
-				{ id: 3, title: 'React', dateCreated: now }
-			],
-			postTags: [
-				{ id: 1, post: 1, tag: 1 },
-				{ id: 1, post: 1, tag: 2 },
-				{ id: 1, post: 2, tag: 3 }
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const TagsSchema = new Schema(storage, 'tags', 'id')
-		const PostTagsSchema = new Schema(storage, 'postTags', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema,)
-			.addSource('tagLinks', [PostTagsSchema])
-			.addSource('tags', TagsSchema)
-			.map(({ post, tags }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				tags: tags.map(tag => tag.title)
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('tagLinks', ({ post }) => ({ post: post.id }))
-					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
-			)
-
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
-		})
-	})
-
-	test('mutate()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			],
-			tags: [
-				{ id: 1, title: 'Sevr', dateCreated: now },
-				{ id: 2, title: 'MongoDB', dateCreated: now },
-				{ id: 3, title: 'React', dateCreated: now }
-			],
-			postTags: [
-				{ id: 1, post: 1, tag: 1 },
-				{ id: 1, post: 1, tag: 2 },
-				{ id: 1, post: 2, tag: 3 }
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const TagsSchema = new Schema(storage, 'tags', 'id')
-		const PostTagsSchema = new Schema(storage, 'postTags', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('tagLinks', [PostTagsSchema])
-			.addSource('tags', TagsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				},
-				tags: {
-					type: [String],
-					data: ({ tags }) => tags.map(tag => tag.title),
-					mutation: {
-						type: [Number],
-						method: [
-							{ source: 'tagLinks', data: (tags, { post }) => ({ post: post.id }), operation: 'delete' },
-							{ source: 'tagLinks', data: (tags, { post }) => tags.map(tag => ({ post: post.id, tag })), operation: 'create' }
-						]
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('tagLinks', ({ post }) => ({ post: post.id }))
-					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
-			)
-			.addMutation('pushTag', [
-				{ source: 'tagLinks', data: (id, { post }) => ({ post: post.id, tag: id }), operation: 'create' }
-			])
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
-		})
-
-		let [ doc1 ] = await doc.mutate('pushTag', 3)
-		expect(doc1 instanceof Document).toBeTruthy()
-		expect(doc1.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB', 'React']
-		})
-
-		let [ doc2 ] = await doc1.mutate({
-			tags: [1, 2]
-		})
-		expect(doc2 instanceof Document).toBeTruthy()
-		expect(doc2.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
-		})
-	})
-
-	test('del()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			],
-			tags: [
-				{ id: 1, title: 'Sevr', dateCreated: now },
-				{ id: 2, title: 'MongoDB', dateCreated: now },
-				{ id: 3, title: 'React', dateCreated: now }
-			],
-			postTags: [
-				{ id: 1, post: 1, tag: 1 },
-				{ id: 1, post: 1, tag: 2 },
-				{ id: 1, post: 2, tag: 3 }
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const TagsSchema = new Schema(storage, 'tags', 'id')
-		const PostTagsSchema = new Schema(storage, 'postTags', 'id')
-
-		const Post = Model
-			.create()
-			.addBoundSource('post', PostsSchema,)
-			.addBoundSource('tagLinks', [PostTagsSchema])
-			.addSource('tags', TagsSchema)
-			.map(({ post, tags }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				tags: tags.map(tag => tag.title)
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('tagLinks', ({ post }) => ({ post: post.id }))
-					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
-			)
-
-		const doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
-		})
-
-		const deleted = await doc.del()
-		expect(deleted).toEqual([
-			{
-				source: 'post',
-				deleted: [{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}]
+				}),
 			},
-			{
-				source: 'tagLinks',
-				deleted: [
-					{ id: 1, post: 1, tag: 1 },
-					{ id: 1, post: 1, tag: 2 }
-				]
+			tags: {
+				type: [String],
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
 			}
-		])
-	})
-
-	test('create()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			],
-			tags: [
-				{ id: 1, title: 'Sevr', dateCreated: now },
-				{ id: 2, title: 'MongoDB', dateCreated: now },
-				{ id: 3, title: 'React', dateCreated: now }
-			],
-			postTags: [
-				{ id: 1, post: 1, tag: 1 },
-				{ id: 1, post: 1, tag: 2 },
-				{ id: 1, post: 2, tag: 3 }
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const TagsSchema = new Schema(storage, 'tags', 'id')
-		const PostTagsSchema = new Schema(storage, 'postTags', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema,)
-			.addSource('tagLinks', [PostTagsSchema])
-			.addSource('tags', TagsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: { source: 'post', data: content => ({ content }) }
-					}
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					}),
-					mutation: {
-						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
-					},
-					default: () => ({ created: now })
-				},
-				tags: {
-					type: [String],
-					data: ({ tags }) => tags.map(tag => tag.title),
-					mutation: {
-						type: [Number],
-						method: [
-							{ source: 'tagLinks', data: (tags, { post }) => ({ post: post.id }), operation: 'delete' },
-							{ source: 'tagLinks', data: (tags, { post }) => tags.map(tag => ({ post: post.id, tag })), operation: 'create' }
-						]
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(
-						input => ({ post: { id: input }}),
-						({ post }) => post.id
-					)
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('tagLinks', ({ post }) => ({ post: post.id }))
-					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
-			)
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
 		})
 
-		let [ document ] = await Post.create({
-			title: 'New Post',
-			content: 'New post content',
-			tags: [2, 3]
-		})
-
-		expect(document instanceof Document).toBeTruthy()
-		expect(document.data).toHaveProperty('title', 'New Post')
-		expect(document.data).toHaveProperty('content', 'New post content')
-		expect(document.data).toHaveProperty('date.created', now)
-		expect(document.data).toHaveProperty('tags', ['MongoDB', 'React'])
-	})
-
-	test('query()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			],
-			tags: [
-				{ id: 1, title: 'Sevr', dateCreated: now },
-				{ id: 2, title: 'MongoDB', dateCreated: now },
-				{ id: 3, title: 'React', dateCreated: now }
-			],
-			postTags: [
-				{ id: 1, post: 1, tag: 1 },
-				{ id: 1, post: 1, tag: 2 },
-				{ id: 1, post: 2, tag: 1 }
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-		const TagsSchema = new Schema(storage, 'tags', 'id')
-		const PostTagsSchema = new Schema(storage, 'postTags', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.addSource('posts', PostsSchema)
-			.addSource('tagLinks', [PostTagsSchema])
-			.addSource('postLinks', [PostTagsSchema])
-			.addSource('tags', TagsSchema)
-			.map(({ post, tags }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated },
-				tags: tags.map(tag => tag.title)
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-					.populate('tagLinks', ({ post }) => ({ post: post.id }))
-					.populate('tags', ({ tagLinks }) => tagLinks.map(link => ({ id: link.tag })))
-			)
-			.addQuery('withTag',
-				Query
-					.create(true)
-					.input(tagId => ({ tag: { id: tagId } }))
-					.populate('tagLinks', ({ tag }) => ({ tag: tag.id }))
-					.populate('posts', ({ tagLinks }) => tagLinks.map(link => ({ id: link.post })))
-					.populate('postLinks', ({ posts }) => posts.map(post => {
-						return { post: post.id }
-					}))
-					.populate('tags', ({ postLinks }) => {
-						return postLinks.reduce((acc, links) => {
-							return acc.concat(
-								links.map(link => ({ id: link.tag }))
-							)
-						}, [])
-					})
-					.map(({ posts, postLinks, tags }) => {
-						return posts.map((post, p) => {
-							return {
-								post,
-								tags: postLinks[p].map(link => tags.find(tag => tag.id === link.tag))
-							}
-						})
-					})
-			)
-
-		const docs = await Post.query('withTag', 1)
-		expect(docs).toHaveLength(2)
-		expect(docs[0].data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now },
-			tags: ['Sevr', 'MongoDB']
-		})
-		expect(docs[1].data).toEqual({
-			title: 'Post 2',
-			content: 'This is the second post',
-			date: { created: now },
-			tags: ['Sevr']
-		})
+	expect(model.describe()).toEqual({
+		id: { type: Number },
+		title: { type: String, required: true },
+		content: { type: String },
+		author: {
+			type: {
+				username: String,
+				name: { first: String, last: String }
+			}
+		},
+		tags: { type: [String] }
 	})
 })
 
-describe('validation', async () => {
-	test('mutate() - unnamed', async() => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					required: true,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					}),
-					mutation: {
-						method: { source: 'post', data: date => ({ dateCreated: date.create }) }
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		expect.assertions(6)
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
-
-		const [, error1 ] = await doc.mutate({ title: 1337 })
-		expect(error1).toHaveProperty('err')
-		expect(error1).toHaveProperty('data')
-
-		const [, error2 ] = await doc.mutate({ content: '' })
-		expect(error2.err.message).toBe('Invalid')
-		expect(error2.data[0]).toHaveProperty('reason', 'optional')
+test(`
+Validate on create
+---
+When creating a new document for a model where data types are defined, if the
+input data does not match, an error should be returned
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			}
+		]
 	})
 
-	test('mutate() - named', async() => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
 
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					required: true,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-			.addMutation('updateTitle', [
-				{ source: 'post', data: title => ({ title }) }
-			], String)
-
-		expect.assertions(5)
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
-
-		const [, error ] = await doc.mutate('updateTitle', 1337)
-		expect(error.err.message).toBe('Invalid')
-		expect(error).toHaveProperty('err')
-		expect(error).toHaveProperty('data')
-	})
-
-	test('create()', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title,
-					mutation: {
-						method: { source: 'post', data: title => ({ title }) }
-					}
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content,
-					mutation: {
-						method: { source: 'post', data: content => ({ content }) }
-					}
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					}),
-					mutation: {
-						method: { source: 'post', data: date => ({ dateCreated: date.created }) }
-					},
-					default: () => ({ created: now })
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}), ({ post }) => post.id)
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		expect.assertions(5)
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
-		
-		const [, error ] = await Post.create({
-			title: 1337
-		})
-		expect(error.err.message).toBe('Invalid')
-		expect(error).toHaveProperty('err')
-		expect(error).toHaveProperty('data')
-	})
-
-	test('No type definitions', async() => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				},
-				{
-					id: 2,
-					title: 'Post 2',
-					content: 'This is the second post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.map(({ post }) => ({
-				title: post.title,
-				content: post.content,
-				date: { created: post.dateCreated }
-			}))
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		let doc = await Post.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			title: 'Post 1',
-			content: 'This is the first post',
-			date: { created: now }
-		})
-
-		const [ document ] = await doc.mutate({ title: 1337 })
-		expect(document instanceof Document).toBeTruthy()
-	})
-})
-
-describe('errors', async () => {
-	test('return empty document if required sources fails', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-
-		const doc = await Post.get(3)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toBeUndefined()
-	})
-
-	test('throw an error when data map fails and no required sources', async () => {
-		const storage = new MemStore({
-			posts: [
-				{
-					id: 1,
-					title: 'Post 1',
-					content: 'This is the first post',
-					dateCreated: now
-				}
-			]
-		})
-		const PostsSchema = new Schema(storage, 'posts', 'id')
-
-		const Post = Model
-			.create()
-			.addSource('post', PostsSchema, false)
-			.describe({
-				title: {
-					type: String,
-					data: ({ post }) => post.title
-				},
-				content: {
-					type: String,
-					data: ({ post }) => post.content
-				},
-				date: {
-					type: {
-						created: Date	
-					},
-					data: ({ post }) => ({
-						created: post.dateCreated
-					})
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ post: { id }}))
-					.populate('post', ({ post }) => ({ id: post.id }))
-			)
-		
-		expect.assertions(1)
-
-		try {
-			await Post.get(3)
-		} catch (err) {
-			expect(err.message).toEqual('Failed to create document')
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
 		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.setInitializer([
+			{
+				source: 'post',
+				operations: input => ([
+					{
+						name: 'create',
+						data: input
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		], {
+			author: Number,
+			tags: [Number]
+		})
+		.describe({
+			id: {
+				type: Number,
+				data: ({ post }) => post.id
+			},
+			title: {
+				type: String,
+				data: ({ post }) => post.title
+			},
+			content: {
+				type: String,
+				data: ({ post }) => post.content
+			},
+			author: {
+				type: {
+					username: String,
+					name: { first: String, last: String }
+				},
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+			},
+			tags: {
+				type: [{ title: String }],
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
+		})
+
+	let [ doc, error ] = await model.create({
+		id: 2,
+		title: 'This is a new post',
+		content: 'Hey. Look at me!',
+		author: 'John',
+		tags: [1]
+	})
+
+	expect(error.err).toBeInstanceOf(Error)
+})
+
+test(`
+Default values
+---
+When creating a new document, default values defined in the data structure
+should be used when not explictly set
+`,
+async () => {
+	const store = new MemStore({
+		users: [
+			{
+				id: 1,
+				username: 'jdoe',
+				name: { first: 'John', last: 'Doe' },
+			},
+		],
+		tags: [
+			{
+				id: 1,
+				title: 'foo'
+			}
+		],
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			}
+		]
+	})
+
+	const Posts = new Source(store, 'posts')
+	const Users = new Source(store, 'users')
+	const Tags = new Source(store, 'tags')
+
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		},
+		{
+			name: 'author',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => {
+				return { id: post.author }
+			}
+		},
+		{
+			name: 'tags',
+			operation: 'read',
+			require: ['post'],
+			selector: ({ post }) => post.tags.map(id => ({ id }))
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+	query.setInputConstructor(({ post }) => post.id)
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addSource('author', Users)
+		.addSource('tags', Tags)
+		.addQuery('default', query)
+		.addMutation('title', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { title: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.addMutation('content', [
+			{
+				source: 'post',
+				operations: (input, { post }) => ([
+					{
+						name: 'update',
+						selector: { id: post.id },
+						data: { content: input }
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.setInitializer([
+			{
+				source: 'post',
+				operations: input => ([
+					{
+						name: 'create',
+						data: input
+					}
+				]),
+				results: ([ post ]) => post
+			}
+		])
+		.describe({
+			id: {
+				data: ({ post }) => post.id
+			},
+			title: {
+				data: ({ post }) => post.title,
+				default: () => 'New Post'
+			},
+			content: {
+				data: ({ post }) => post.content
+			},
+			author: {
+				data: ({ author }) => ({
+					username: author.username,
+					name: author.name
+				}),
+				default: () => 1
+			},
+			tags: {
+				data: ({ tags }) => tags.map(tag => ({ title: tag.title }))
+			}
+		})
+
+	let [ res ] = await model.create({
+		id: 2,
+		content: 'Hey. Look at me!',
+		tags: [1]
+	})
+
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		id: 2,
+		title: 'New Post',
+		content: 'Hey. Look at me!',
+		author: {
+			username: 'jdoe',
+			name: { first: 'John', last: 'Doe' }
+		},
+		tags: [{ title: 'foo' }]
 	})
 })
 
-describe('property access', async () => {
-	test('write-only properties', async () => {
-		const storage = new MemStore({
-			users: [
-				{
-					id: 1,
-					username: 'jdoe',
-					password: 'imasecret'
-				}
-			]
-		})
-		const UsersSchema = new Schema(storage, 'users')
-
-		const User = Model
-			.create()
-			.addSource('user', UsersSchema)
-			.describe({
-				id: {
-					type: Number,
-					data: ({ user }) => user.id
-				},
-				username: {
-					type: String,
-					data: ({ user }) => user.username
-				},
-				password: {
-					type: String,
-					mutation: {
-						method: { source: 'user', data: password => ({ password }) }
-					}
-				},
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(id => ({ user: { id }}))
-					.populate('user', ({ user }) => ({ id: user.id }))
-			)
-
-		const doc = await User.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).not.toHaveProperty('password')
-
-		const [doc2] = await doc.mutate({ password: 'password2' })
-		expect(doc2 instanceof Document).toBeTruthy()
-		expect(doc2.data).not.toHaveProperty('password')
-		expect(storage._data.users[0].password).toBe('password2')
+test(`
+Write-only properties
+---
+Properties with no data function should not be returned with the document data
+`,
+async () => {
+	const store = new MemStore({
+		posts: [
+			{
+				id: 1,
+				title: 'Post 1',
+				content: 'This is the first post',
+				author: 1,
+				tags: [1]
+			},
+			{
+				id: 2,
+				title: 'Post 2',
+				content: 'This is the second post',
+				author: 1,
+				tags: [1, 2]
+			}
+		]
 	})
 
-	test('property not modifiable', async () => {
-		const storage = new MemStore({
-			tags: [
-				{
-					id: 1,
-					title: 'React',
-					slug: 'react'
-				}
-			]
-		})
-		const TagsSchema = new Schema(storage, 'tags')
+	const Posts = new Source(store, 'posts')
 
-		const Tag = Model
-			.create()
-			.addSource('tag', TagsSchema)
-			.describe({
-				id: {
-					type: Number,
-					data: ({ tag }) => tag.id
-				},
-				title: {
-					type: String,
-					data: ({ tag }) => tag.title,
-					modify: false,
-					mutation: {
-						method: { source: 'tag', data: title => ({ title }) }
-					}
-				},
-				slug: {
-					type: String,
-					data: ({ tag }) => tag.slug,
-					mutation: {
-						method: { source: 'tag', data: slug => ({ slug }) }
-					}
-				}
-			})
-			.addQuery('default',
-				Query
-					.create()
-					.input(
-						id => ({ tag: { id }}),
-						({ tag }) => tag.id
-					)
-					.populate('tag', ({ tag }) => ({ id: tag.id }))
-			)
-		
-		const doc = await Tag.get(1)
-		expect(doc instanceof Document).toBeTruthy()
-		expect(doc.data).toEqual({
-			id: 1,
-			title: 'React',
-			slug: 'react'
+	const populations = [
+		{
+			name: 'post',
+			operation: 'read',
+			selector: ({ input }) => ({ id: input })
+		}
+	]
+
+	const query = new Query()
+	populations.forEach(p => query.addPopulation(p))
+
+	const model = new Model()
+	model
+		.addSource('post', Posts)
+		.addQuery('default', query)
+		.describe({
+			id: {},
+			title: {
+				data: ({ post }) => post.title
+			},
+			content: {
+				data: ({ post }) => post.content
+			}
 		})
 
-		const [doc2] = await doc.mutate({ title: 'Polymod', slug: 'polymod' })
-		expect(doc2.data).toEqual({
-			id: 1,
-			title: 'React',
-			slug: 'polymod'
-		})
-
-		const [doc3, error] = await doc2.mutate('title', 'Polymod')
-		expect(doc3).toBeUndefined()
-		expect(error.err.message).toEqual('Property \'title\' cannot be modified')
-
-		const [doc4] = await Tag.create({ title: 'Polymod', slug: 'polymod' })
-		expect(doc4 instanceof Document).toBeTruthy()
-		expect(doc4.data).toHaveProperty('title', 'Polymod')
-		expect(doc4.data).toHaveProperty('slug', 'polymod')	
+	let res = await model.get(1)
+	
+	expect(res).toBeInstanceOf(Document)
+	expect(res.data).toEqual({
+		title: 'Post 1',
+		content: 'This is the first post',
 	})
+	expect(res.data.id).toBeUndefined()
 })

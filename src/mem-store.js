@@ -47,7 +47,20 @@ class MemStore {
 			}
 
 			if (matched) {
-				pushDoc = { ...doc, ...data }
+				pushDoc = Object.keys(data).reduce((acc, key) => {
+					if (key === '$push') {
+						return Object.keys(data.$push).reduce((pAcc, pKey) => ({
+							...pAcc,
+							[pKey]: Array.isArray(pAcc[pKey]) ? pAcc[pKey].concat(data.$push[pKey]) : [data.$push[pKey]]
+						}), { ...acc })
+					} else {
+						return {
+							...acc,
+							[key]: data[key]
+						}
+					}
+				}, doc)
+
 				updated.push(pushDoc)
 			} else {
 				pushDoc = doc

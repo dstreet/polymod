@@ -1,12 +1,12 @@
 const path = require('path')
 
 module.exports = {
-	entry: ['./index.js'],
+	entry: ['./src/index.js'],
 	output: {
 		filename: 'index.js',
 		path: path.resolve(__dirname, 'dist'),
 		library: 'polymod',
-		libraryTarget: 'umd'
+		libraryTarget: 'commonjs2'
 	},
 	module: {
 		rules: [

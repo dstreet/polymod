@@ -4,7 +4,7 @@
 [![Known Vulnerabilities](https://snyk.io/test/github/dstreet/polymod/badge.svg)](https://snyk.io/test/github/dstreet/polymod)
 [![npm](https://img.shields.io/npm/v/polymod.svg)]()
 
-A library for composing data models from any number of sources inspired by
+A library for composing data models from any number of sources. Inspired by
 GraphQL and Falcor.
 
 ## Install
@@ -19,219 +19,232 @@ npm install --save polymod
 
 ## Documentation
 
-### Basic Usage
+### Defining a model
+- [Introduction](#introduction)
 - [Models](#models)
 - [Sources](#sources)
 - [Queries](#queries)
-- [Mapping source data](#mapping)
-- [Mutating a document](#mutate)
-- [Deleting a document](#delete)
-### Advanced Usage
-- [Data Descriptors](#describe)
-- [Creating a document](#create)
-- [Validation](#validation)
-- [Non-modifiable properties](#non-modifiable)
+- [Mutations](#mutation)
+### Interacting with a model
+- [get()](#get)
+- [query()](#query)
+- [mutate()](#mutate)
+- [create()](#create)
+- [remove()](#remove)
+- [describe()](#describe)
 
 ---
+
+<a name="introduction"></a>
+## Introduction
+
+Polymod is a Node.js library for composing application data models. Unlike
+other data modeling libraries, such as Mongoose or Sequelize, Polymod is
+agnostic and is designed to interface with any data source so long as it
+conforms to a simple source interface. Additionally, each source in a Polymod
+model can come from a different data source. For instance, an application may
+need to pull data from a Postgres database as well as related session
+information from a Redis store. Similarly, an application may be an interface
+between two or web services. A Polymod model could consume resources from
+multiple RESTful APIs.
 
 <a name="models"></a>
 ## Models
 
-```javascript
-const { Model, MemStore, Schema, Query } = require('polymod')
+A `Model` in Poly defines the data sources, queries, mutations, and data
+structure for a data model.
 
-const OrderDetail = Model.create()
+```javascript
+const { Model, Query } = require('polymod')
+
+const OrderDetail = Model
+	.create()
+
+	// Add sources
+	.addSource('order', new MemSource(store, 'orders'))
+	.addSource('customer', new MemSource(store, 'customers'))
+	.addSource('products', new MemSource(store, 'products'))
+	
+	// Add the default query
+	.addQuery('default', orderQuery)
+
+	// Add a mutation
+	.addMutation('ship', shipOrder)
+
+	// Describe the data structure
+	.describe({
+		shipped: {
+			type: Boolean,
+			required: true,
+			default: () => false,
+			data: ({ order }) => order.shipped
+		},
+		date: {
+			type: {
+				created: Date,
+				payed: Date
+			},
+			default: () => ({ created: new Date() }),
+			data: ({ order }) => ({
+				created: order.dateCreated,
+				payed: order.datePayed
+			})
+		},
+		customer: {
+			type: { name: String, address: String },
+			required: true,
+			data: ({ customer }) => ({
+				name: customer.name,
+				address: customer.address
+			})
+		},
+		products: {
+			type: [{ title: String, price: Number }],
+			required: true,
+			data: ({ products }) => products.map(product => ({
+				title: product.title,
+				price: product.price
+			}))
+		},
+		total: {
+			type: Number,
+			data: ({ products }) => products.reduce((total, product) => {
+				return total + product.price
+			}, 0)
+		}
+	})
 ```
+
+In this example, the model, `OrderDetail` defines data from three in-memory
+sources: `orders`, `customers`, and `products`. A default query is added to
+fetch the data from the sources (more on queries below), a mutation is added
+to ship an order (more on mutations below), and the data structure is defined
+with the following properties: `shipped`, `date`, `customer`, `products`, and
+`total`. Each of these properties defines a `data` function, which is used to
+transform the source data to the final document property. Three other
+attributes are defined on some of the data structure properties:
+
+- `type`: Defines the schema type of the property
+- `default`: A function to set the default value of a property
+- `required`: Whether the property is required or not
+
+All of these properties, including `data` are optional. If `data` is not
+defined, then the property is considered write-only.
+
 
 <a name="sources"></a>
 ## Sources
 
-Models in polymod will contain one or more sources. Sources are the primary
-interface between the model and the raw data. Sources are created from Schemas,
-which tell polymod how to interface with the raw data source.
+Sources are the interface between the model and the data sources. Polymod
+ships with a single source, `MemSource`, which interfaces with the
+in-memory storage provided by `MemStore`. Additionally, every model created
+with Polymod also implements the source interface, allowing models to also
+be used as sources for other models.
 
-A Schema should reference a specific collection of data from a data storage
-mechanism. Polymod ships with `MemStore`, an in-memory data storage mechanism,
-but any storage mechanism can be used provided it has the same interface.
+Creating a new source for use with Polymod is fairly straight forward.
+Sources are objects, which implement two methods: `fetch` and `mutate`.
 
-```javascript
-// Create a new in-memory storage mechanism with some
-// initial data
-const store = new MemStore({
-	customers: [
-		{
-			id: 1,
-			name: { first: 'John', last: 'Smith' },
-			address: {
-				street: '300 BOYLSTON AVE E',
-				city: 'SEATTLE',
-				state: 'WA',
-				zip: 98012
-			}
-		},
-		{
-			id: 2,
-			name: { first: 'Arthur', last: 'Jones' },
-			address: {
-				street: '1035 TRACTION ST',
-				city: 'GREENVILLE',
-				state: 'SC',
-				zip: 29607
-			}
-		}
-	],
-	products: [
-		{
-			id: 1,
-			title: 'You Don\'t Know JS: Up & Going',
-			isbn: '1491924462',
-			price: 4.99
-		},
-		{
-			id: 2,
-			title: 'JavaScript: The Good Parts',
-			isbn: '0596517742',
-			price: 21.93
-		}
-	],
-	orders: [
-		{
-			id: 1,
-			dateCreated: '2017-01-01',
-			datePayed: null,
-			shipped: false,
-			customer: 1,
-			products: [1, 2]
-		}
-	]
-})
+The `fetch` method takes two parameters:
 
-// Create schemas for each of the collections
-const customers = new Schema(store, 'customers')
-const products = new Schema(store, 'products')
-const orders = new Schema(store, 'orders')
+- `operation`: The source operation to perform (i.e. 'read')
+- `selector`: The selector used to fetch the data
 
-// Add the sources to the model
-OrderDetail
-	.addSource('order', orders)
-	.addSource('customer', customers)
-	.addSource('products', products)
-```
+The `mutate` method takes a single parameter:
+
+- `operations`: An array of operations to be performed on the source.
+                See mutations for more information.
+
 
 <a name="queries"></a>
 ## Queries
 
-Queries provide read functionality for a model. Every model must implement at
-least one query, named "default."
-
-A Query defines what input data is expected for the query, and what data to
-fetch from the model sources. This is done with the `populate` method. Each
-method is executed in the order that it is defined, and as such, the data
-returned for one source, is available for use by the next population. This
-makes joining multiple sources together easy.
+Polymod queries are the interface for fetching a model's data from its sources.
+These are defined using the `Query` class. Every model must have at least one
+query, the 'default' query.
 
 ```javascript
-const defaultQuery = Query
+const orderQuery = Query
 	.create()
-	// Query will accept a single value, which will be used
-	// as the order id
-	.input(id => ({ order: { id } }))
-
-	// Get the order where the id matches the input
-	.populate('order', ({ order }) => ({ id: order.id }))
-
-	// Get the customer with the id stored in the order from above
-	.populate('customer', ({ order }) => ({ id: order.customer }))
-
-	// Get an array of products associated with the order
-	.populate('products', ({ order }) => order.products.map(product => ({ id: product })))
-
-// Add query as the default
-OrderDetail.addQuery('default', defaultQuery)
+	.addPopulation({
+		name: 'order',
+		operation: 'read',
+		selector: ({ input }) => ({ id: input })
+	})
+	.addPopulation({
+		name: 'customer',
+		operation: 'read',
+		requires: ['order'],
+		selector: ({ order }) => ({ id: order.customer })
+	})
+	.addPopulation({
+		name: 'products',
+		operation: 'read',
+		requires: ['order'],
+		selector: ({ order }) => order.products.map(product => ({ id: product }))
+	})
 ```
 
-Now that we have defined the model's sources, and added a default query, we can
-fetch a document from the model.
+Queries define populations, which instruct the model on how to fetch data from
+a the source. A population is an object with the following properties:
+
+- `name`: The source name
+- `operation`: The source operation to use
+- `requires`: The populations which must be complete before this population
+- `selector`: A function that takes any available input and source data and
+              returns a selector for the source
+
+
+<a name="mutations"></a>
+## Mutations
+
+By default Polymod sources are immutable. In order to allow source data to be
+mutated, mutations need to be defined by the model. Mutations are defined as an
+array of operations by source.
 
 ```javascript
-// Get a document with an order id of `1`
-const document = await OrderDetail.get(1)
+const shipOrder = [
+	{
+		source: 'post',
+		operations: (input, { post }) => ([
+			{
+				name: 'update',
+				selector: { id: post.id },
+				data: { shipped: true }
+			}
+		]),
+		results: ([ post ]) => post
+	}
+]
 ```
 
-The result of this query will be an object containing the data from each source:
+The mutation array should contain objects with the following properties:
+
+- `source`: The source being mutated
+- `operations`: A function returning an array of operations
+- `results`: A function that returns data from the operations
+
+The `operations` function takes the mutation input data, and object containing
+the existing source data. The function should return an array of operations,
+which is an object containing the operation name, the mutation
+selector (optional), and the data to be mutated (also optional).
+
+The `results` function is passed an array with each of the operation results
+as an element in the array.
+
+
+<a name="get"></a>
+## get()
+
+Every model has a `get` method, which executues the default query with the
+given input. The returned value should either be a `Document` or an array
+of `Document`s. The data for a document can be retrieved using the `data`
+property.
 
 ```javascript
-{
-	order: {
-		id: 1,
-		dateCreated: '2017-01-01',
-		datePayed: null,
-		shipped: false,
-		customer: 1,
-		products: [1, 2]
-	},
-	customer: {
-		id: 1,
-		name: { first: 'John', last: 'Smith' },
-		address: {
-			street: '300 BOYLSTON AVE E',
-			city: 'SEATTLE',
-			state: 'WA',
-			zip: 98012
-		}
-	},
-	products: [
-		{
-			id: 1,
-			title: 'You Don\'t Know JS: Up & Going',
-			isbn: '1491924462',
-			price: 4.99
-		},
-		{
-			id: 2,
-			title: 'JavaScript: The Good Parts',
-			isbn: '0596517742',
-			price: 21.93
-		}
-	]
-}
-```
+const doc = await OrderDetail.get(1)
 
-<a name="mapping"></a>
-## Mapping source data
-
-The result of query above just dumps the source data. However, this is very
-useful. It would be better if we could map the source data to a document
-structure that is easier to work with.
-
-This can be accomplished in one of two ways. The first of which is the `map`
-method.
-
-```javascript
-OrderDetail.map(({ order, customer, products }) => ({
-	shipped: order.shipped,
-	date: {
-		created: order.dateCreated,
-		payed: order.datePayed
-	},
-	customer: {
-		name: customer.name,
-		address: customer.address
-	},
-	products: products.map(product => ({
-		title: product.title,
-		price: product.price
-	})),
-	total: products.reduce((total, product) => total + product.price, 0)
-}))
-```
-
-The statement creates a new document structure with data derivied from the
-source data.
-
-The result of the query `OrderDetails.get(1)` would now look like:
-
-```javascript
+console.log(doc.data)
+/*
 {
 	shipped: false,
 	date: {
@@ -259,260 +272,140 @@ The result of the query `OrderDetails.get(1)` would now look like:
 	],
 	total: 26.92
 }
+*/
 ```
+
+
+<a name="query"></a>
+## query()
+
+The `query` method executes a named query with the given input. For example,
+the default query could also be executed as and the result is the same:
+
+```javascript
+const doc = await OrderDetail.query('default', 1)
+```
+
 
 <a name="mutate"></a>
-## Mutating a document
+## mutate()
 
-By default, all document properties are immutable and all mutations must be
-explicitly defined. This helps control how the model can be modified to protect
-data integrity. Mutations are defined using the `addMutation` method, where a
-mutation is given a name, and told how to modify the model sources.
+The `mutate` method allows access to the model's mutations and can be called in
+one of two ways:
 
-```javascript
-OrderDetail.addMutation('removeProductByTitle', [
-	{
-		source: 'order',
-		operation: 'update',
-		data: (title, sources) => {
-			const productIds = [...sources.order.products]
-			const index = sources.order.products.findIndex(product => product.title === title)
-
-			productIds.splice(index, 1)
-			return productIds
-		}
-	}
-])
-```
-
-With this mutation, we can now remove a product from the order. `mutate`
-resolves with an object, which has two properties: `document` and `error`.
+- `mutate(name, data)`: This will execute the mutation with name `name`
+- `mutate(dataObject)`: This will treat each property in `dataObject` as a
+                        mutation. In order to do this, the property name
+						must be a defined mutation.
 
 ```javascript
-const order = await OrderDetail.get(1)
-const [ updatedOrder ] = await order.mutate('removeProductByTitle', 'JavaScript: The Good Parts')
+const [ newDoc, error ] = await doc.mutate('ship')
 ```
 
-Result:
-```javascript
-{
-	...
-	products: [
-		{
-			title: 'You Don\'t Know JS: Up & Going',
-			price: 4.99
-		}
-	],
-	total: 4.99
-	...
-}
-```
+In either instance, the returned value of the `mutate` method is an array with
+two elements: the new document, and an error if the mutation failed for some
+reason. If the mutation was successful, `error` will be undefined. However,
+if there was an error, `newDoc` will be null.
 
-<a name="delete"></a>
-## Deleting a document
-
-Like mutations, documents can also be deleted, along with their underlying
-source data. Similarly to mutations, source data, by default, cannot be
-deleted; Instead, each source where this should be allowed, must be "bound."
-
-Binding a source, allows its selector (the selection query used to fetch data)
-to determine what source data is deleted along with the document. The result
-of the `del` method is an object that describes the source data that
-was removed.
-
-```javascript
-// Bind the order source
-OrderDetail.bindSources(['order'])
-
-// Fetch and delete a document
-const order = await OrderDetail.get(1)
-await order.del()
-```
-
-Result:
-```javascript
-[
-	{
-		source: 'order',
-		deleted: [
-			{
-				id: 1,
-				dateCreated: '2017-01-01',
-				datePayed: null,
-				shipped: false,
-				customer: 1,
-				products: [1, 2]
-			}
-		]
-	}
-]
-```
-
-<a name="describe"></a>
-## Data descriptors
-
-Many applications will need to explicitly define the type of data contained
-within a model or document. In these cases, the method `describe` should be
-used in place of `map`.
-
-'describe' allows the ability to define document properties, that conform to a
-particular type, are mutable, are required, etc.
-
-```javascript
-OrderDetail.describe({
-	// Property is a Boolean value. The value will default to `false` when
-	// creating a new document
-	shipped: {
-		type: Boolean,
-		required: true,
-		data: ({ order }) => order.shipped,
-		default: () => false,
-		mutation: {
-			method: { source: 'order' data: shipped => ({ shipped }) }
-		}
-	},
-
-	// Propery is an object with `created` and `payed` properties.
-	// Both are Date types
-	date: {
-		type: {
-			created: Date,
-			payed: Date
-		},
-		data: ({ order }) => ({
-			created: order.dateCreated,
-			payed: order.datePayed
-		}),
-		default: () => ({
-			created: new Date()
-		})
-	},
-
-	// Property is an object with `name` and `address` properties.
-	// Both are String types. The property is mutable, and its
-	// mutation must accept a String type.
-	customer: {
-		type: {
-			name: String,
-			address: String
-		},
-		required: true,
-		data: ({ customer }) => ({
-			name: customer.name,
-			address: customer.address
-		}),
-		mutation: {
-			type: String,
-			method: { source: 'order' data: customerId => ({ customer: customerId }) }
-		}
-	},
-
-	// Property is an array of objects. Each object has the properties
-	// `title` and `price`. `title` is a String type, and `price` is
-	// a Number type
-	products: {
-		type: [{
-			title: String,
-			price: Number
-		}],
-		required: true,
-		data: ({ products }) => products.map(product => ({
-			title: product.title,
-			price: product.price
-		}))
-	},
-
-	// Property is a Number type
-	total: {
-		type: Number,
-		data: ({ products }) => products.reduce((total, product) => total + product.price, 0)
-	}
-})
-```
-
-While the above is a bit more verbose than `map`, it also provides the greatest
-control over the data.
-
-When a mutation is defined for a property, a new model mutaion is created with
-the same name as the property. This allows the document to be mutate in a more
-expected manor:
-
-```javascript
-const order = OrderDetail.get(1)
-const [ updatedOrder ] = order.mutate({
-	shipped: true,
-	customer: 2
-})
-```
 
 <a name="create"></a>
-## Creating a document
+## create()
 
-When using the data descriptors, it is also possible to create a new document
-using the `create` method. When creating a new document, data will be created
-using on any update or create mutation operations and default values.
+The `create` method, as its name suggests, is used to create new model
+documents. However, in order to create documents, an initializer needs to be
+defined for the model. This is done using the `setInitializer` model method.
 
 ```javascript
-const [ document ] = OrderDetail.create({
+OrderDetail.setInitializer([
+	{
+		source: 'order',
+		operations: input => ([
+			{
+				name: 'create'
+			}
+		]),
+		results: ([ order ]) => order
+	}
+], {
+	customer: Number,
+	products: [Number]
+})
+```
+
+The initializer is simply a special mutation that is called to mutate the data
+sources as needed. The second, and optional argument, is the type schema for
+input data. If the model has a descriptor, the properties defined here, will
+override any types in the descriptor.
+
+```javascript
+const [ doc, error ] = await OrderDetail.create({
 	customer: 2,
 	products: [1]
 })
 ```
 
-<a name="validation"></a>
-## Validation
 
-Using data descriptors also enables document validation when applying a
-mutation or creating a new document. If a value is provided that does not meet
-a property's requirements, an error will be returned.
+<a name="remove"></a>
+## remove()
+
+`remove` is a method of a Document instance, and like the `create` method, a
+special mutation needs to be defined before documents can be removed. This is
+achieved using the `setRemove` method.
 
 ```javascript
-const [ document, error ] = OrderDetail.create({
-	customer: 'Joe',
-	products: 1
-})
+OrderDetail.setRemove([
+	{
+		source: 'order',
+		operations: ({ input }) => ([
+			{
+				name: 'remove',
+				selector: { id: input }
+			}
+		])
+	}
+])
 ```
 
-`error` will be an object with two properties: `err`, which is a JavaScript
-Error object, and `data`, which contains information about which properties
-failed the validation check and why.
-
-When adding mutations with `addMutation`, validation can also be enabled by
-passing a type as a parameter:
+The returned value from the `remove` method is and object with properties for
+each mutated source, and values containing the operation results.
 
 ```javascript
-OrderDetail.addMutation('payed', [
-	{ source: 'order', data: payed => payed ? new Date() : null }
-], Boolean)
+const removed = await doc.remove()
 ```
 
-<a name="non-modifiable"></a>
-## Non-modifiable properties
 
-It may be beneficial to have model properties that can be created, but once
-created cannot be modified. To do this, `modify: false` can be added to the
-property descriptor. By default every property that has a mutation is
-modifiable. Using the example above, the `customer` property should not be
-allowed to be modified once the order has been created. This can be achieved
-by altering the property descriptor such that:
+<a name="describe"></a>
+## describe()
+
+When calling the `describe` method without any parameters, the model will return
+the defined data descriptor types.
 
 ```javascript
-...
-customer: {
-	type: {
-		name: String,
-		address: String
+console.log(OrderDetail.describe())
+
+/*
+{
+	shipped: {
+		type: Boolean,
+		required: true
 	},
-	required: true,
-	modify: false,
-	data: ({ customer }) => ({
-		name: customer.name,
-		address: customer.address
-	}),
-	mutation: {
-		type: String,
-		method: { source: 'order' data: customerId => ({ customer: customerId }) }
+	date: {
+		type: {
+			created: Date,
+			payed: Date
+		}
+	},
+	customer: {
+		type: { name: String, address: String },
+		required: true
+	},
+	products: {
+		type: [{ title: String, price: Number }],
+		required: true
+	},
+	total: {
+		type: Number
 	}
 }
-...
+*/
 ```
