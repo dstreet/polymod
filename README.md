@@ -366,7 +366,7 @@ OrderDetail.setRemove([
 ])
 ```
 
-The returned value from the `remove` method is and object with properties for
+The returned value from the `remove` method is an object with properties for
 each mutated source, and values containing the operation results.
 
 ```javascript
