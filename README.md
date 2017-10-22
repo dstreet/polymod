@@ -1,6 +1,6 @@
 # Polymod
 
-![Travis CI](https://travis-ci.org/dstreet/bento-box.svg?branch=master)
+[![Build Status](https://travis-ci.org/dstreet/polymod.svg?branch=master)](https://travis-ci.org/dstreet/polymod)
 [![Known Vulnerabilities](https://snyk.io/test/github/dstreet/polymod/badge.svg)](https://snyk.io/test/github/dstreet/polymod)
 [![npm](https://img.shields.io/npm/v/polymod.svg)]()
 
