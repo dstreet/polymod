@@ -391,8 +391,20 @@ class Model {
 				const [ doc, err ] = await this.create(operation.data)
 				results.push(doc)
 			} else {
-				// Here selector should be a document
-				const [ doc, err ] = await operation.selector.mutate(operation.name, operation.data)
+				let doc
+				let err
+
+				// Here selector should be a document or an array of documents
+				if (Array.isArray(operation.selector)) {
+					doc = []
+					for (const document of operation.selector) {
+						const [ d, err ] = await document.mutate(operation.name, operation.data)
+						doc.push(d)
+					}
+				} else {
+					[ doc, err ] = await operation.selector.mutate(operation.name, operation.data)	
+				}
+
 				results.push(doc)
 			}
 		}
