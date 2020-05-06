@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest",
     "build": "webpack",
-    "prepublish": "npm run build"
+    "prepublish": "npm run snyk-protect && npm run build",
+    "snyk-protect": "snyk protect"
   },
   "repository": "dstreet/polymod",
   "author": "David Street",
@@ -17,7 +18,8 @@
     "schema-inspector": "^1.6.8",
     "sift": "^3.2.7",
     "uuid": "^3.0.1",
-    "uuid-validate": "0.0.2"
+    "uuid-validate": "0.0.2",
+    "snyk": "^1.319.0"
   },
   "devDependencies": {
     "babel-core": "^6.23.1",
@@ -30,5 +32,6 @@
     "eslint": "^4.1.1",
     "jest": "^20.0.4",
     "webpack": "^2.2.1"
-  }
+  },
+  "snyk": true
 }
